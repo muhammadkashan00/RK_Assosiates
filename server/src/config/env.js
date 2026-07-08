@@ -10,7 +10,7 @@ const monorepoRoot = path.resolve(__dirname, "../../..")
 
 // Load env from the project-local files. In this environment the framework
 // mirrors all managed env vars into .env.development.local at the repo root.
-// On Render (production) real environment variables take precedence and these
+// On the production host, real environment variables take precedence and these
 // files simply will not exist.
 dotenv.config({ path: path.join(monorepoRoot, ".env.development.local") })
 dotenv.config({ path: path.join(monorepoRoot, ".env") })
@@ -35,7 +35,7 @@ export const env = {
   CLOUDINARY_API_SECRET: required("CLOUDINARY_API_SECRET"),
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || "",
   // Default admin seed credentials (override in production).
-  SEED_ADMIN_USERNAME: process.env.SEED_ADMIN_USERNAME || "admin",
+  SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL || "admin@rkassociates.com",
   SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || "",
 }
 

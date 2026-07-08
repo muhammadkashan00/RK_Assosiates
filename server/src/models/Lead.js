@@ -4,18 +4,20 @@ const { Schema } = mongoose
 
 const leadSchema = new Schema(
   {
-    propertyId: { type: Schema.Types.ObjectId, ref: "Property", index: true },
-    ipAddress: { type: String }, // anonymized
+    property: { type: Schema.Types.ObjectId, ref: "Property", index: true },
+    name: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, trim: true },
+    message: { type: String, default: "" },
+    ip: { type: String }, // anonymized
     status: {
       type: String,
       enum: ["initiated", "converted"],
       default: "initiated",
     },
-    timestamp: { type: Date, default: Date.now },
   },
-  { timestamps: false },
+  { timestamps: true },
 )
 
-leadSchema.index({ timestamp: -1 })
+leadSchema.index({ createdAt: -1 })
 
 export const Lead = mongoose.models.Lead || mongoose.model("Lead", leadSchema)

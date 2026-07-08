@@ -1,15 +1,16 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { api } from "../lib/api"
 
-type AdminUser = { id: string; username: string; lastLogin?: string }
+type AdminUser = { id: string; email: string }
 
 type AuthContextValue = {
   user: AdminUser | null
   loading: boolean
-  login: (username: string, password: string) => Promise<void>
-  logout: () => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  logout: () => void
 }
 
+const TOKEN_KEY = "rk_token"
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -18,13 +19,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) {
+      setLoading(false)
+      return
+    }
     api
-      .get("/auth/me")
-      .then((r) => {
-        if (active) setUser(r.data.user)
+      .get<{ user: AdminUser }>("/auth/me")
+      .then((res) => {
+        if (active) setUser(res.user)
       })
       .catch(() => {
-        if (active) setUser(null)
+        if (active) {
+          localStorage.removeItem(TOKEN_KEY)
+          setUser(null)
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -34,19 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  async function login(username: string, password: string) {
-    const r = await api.post("/auth/login", { username, password })
-    setUser(r.data.user)
+  async function login(email: string, password: string) {
+    const res = await api.post<{ token: string; user: AdminUser }>("/auth/login", { email, password })
+    localStorage.setItem(TOKEN_KEY, res.token)
+    setUser(res.user)
   }
 
-  async function logout() {
-    await api.post("/auth/logout")
+  function logout() {
+    localStorage.removeItem(TOKEN_KEY)
     setUser(null)
   }
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

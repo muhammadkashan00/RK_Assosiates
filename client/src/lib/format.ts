@@ -12,12 +12,12 @@ export function formatNumber(value: number): string {
 
 export const statusLabels: Record<string, string> = {
   available: "Available",
-  "under-construction": "Under Construction",
+  reserved: "Reserved",
   sold: "Sold",
 }
 
 export const statusStyles: Record<string, string> = {
   available: "bg-emerald-100 text-emerald-800",
-  "under-construction": "bg-amber-100 text-amber-800",
+  reserved: "bg-amber-100 text-amber-800",
   sold: "bg-rose-100 text-rose-800",
 }

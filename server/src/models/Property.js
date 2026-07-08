@@ -2,20 +2,13 @@ import mongoose from "mongoose"
 
 const { Schema } = mongoose
 
-// GeoJSON Polygon sub-schema. Coordinates follow the GeoJSON spec: [lng, lat].
-// The outer ring must be closed (first point === last point). A 2dsphere index
-// enables $geoIntersects queries for "Properties Near You".
+// GeoJSON Polygon following the spec: coordinates are [lng, lat] and the outer
+// ring must be closed (first point === last point). A 2dsphere index enables
+// $geoIntersects queries for "Properties Near You" (FR-11).
 const polygonSchema = new Schema(
   {
-    type: {
-      type: String,
-      enum: ["Polygon"],
-      default: "Polygon",
-    },
-    coordinates: {
-      type: [[[Number]]],
-      default: undefined,
-    },
+    type: { type: String, enum: ["Polygon"], default: "Polygon" },
+    coordinates: { type: [[[Number]]], default: undefined },
   },
   { _id: false },
 )
@@ -23,33 +16,35 @@ const polygonSchema = new Schema(
 const propertySchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
-    markdownDescription: { type: String, default: "" },
+    buildingName: { type: String, default: "", trim: true },
+    address: { type: String, default: "", trim: true },
+    description: { type: String, default: "" },
     price: { type: Number, required: true, min: 0 },
-    areaSqft: { type: Number, required: true, min: 0 },
     rooms: { type: Number, default: 0, min: 0 },
     baths: { type: Number, default: 0, min: 0 },
-    buildingName: { type: String, default: "", trim: true },
-    images: { type: [String], default: [] },
-    videos: { type: [String], default: [] },
-    // Area highlight polygon (general neighborhood, never the exact address).
-    areaHighlight: { type: polygonSchema, default: undefined },
-    // Approximate center used only for sorting/labeling, derived from polygon.
-    areaLabel: { type: String, default: "" },
-    tags: { type: [String], default: [] },
+    areaSqft: { type: Number, default: 0, min: 0 },
     status: {
       type: String,
-      enum: ["available", "under-construction", "sold"],
+      enum: ["available", "reserved", "sold"],
       default: "available",
     },
-    isPublished: { type: Boolean, default: false },
+    published: { type: Boolean, default: true },
+    images: { type: [String], default: [] },
+    video: { type: String, default: "" },
+    // Highlighted coverage area (never the exact address) drawn by the admin.
+    area: { type: polygonSchema, default: undefined },
+    // Approximate center, derived from the polygon on the client.
+    marker: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    views: { type: Number, default: 0 },
   },
   { timestamps: true },
 )
 
-// Text index for search on title, building name and tags.
-propertySchema.index({ title: "text", buildingName: "text", areaLabel: "text", tags: "text" })
-// Geospatial index for polygon containment queries.
-propertySchema.index({ areaHighlight: "2dsphere" })
-propertySchema.index({ isPublished: 1, createdAt: -1 })
+propertySchema.index({ title: "text", buildingName: "text", address: "text" })
+propertySchema.index({ area: "2dsphere" })
+propertySchema.index({ published: 1, createdAt: -1 })
 
 export const Property = mongoose.models.Property || mongoose.model("Property", propertySchema)

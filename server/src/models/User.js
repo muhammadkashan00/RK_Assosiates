@@ -5,10 +5,10 @@ const { Schema } = mongoose
 
 const userSchema = new Schema(
   {
-    username: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     passwordHash: { type: String, required: true },
     lastLogin: { type: Date },
-    // Brute-force protection: track failed attempts and lockout window.
+    // Brute-force protection: track failed attempts and a lockout window.
     failedAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
   },
