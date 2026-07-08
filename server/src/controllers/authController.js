@@ -1,25 +1,25 @@
 import { User } from "../models/User.js"
 import { asyncHandler } from "../middleware/error.js"
-import { signToken, cookieOptions, TOKEN_COOKIE } from "../middleware/auth.js"
+import { signToken } from "../middleware/auth.js"
 
 const MAX_FAILED = 5
 const LOCK_MINUTES = 15
 
 export const login = asyncHandler(async (req, res) => {
-  const { username, password } = req.body || {}
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required." })
+  const { email, password } = req.body || {}
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required." })
   }
 
-  const user = await User.findOne({ username: String(username).toLowerCase().trim() })
+  const user = await User.findOne({ email: String(email).toLowerCase().trim() })
   // Generic message to avoid revealing which field was wrong.
-  const invalid = () => res.status(401).json({ error: "Invalid credentials." })
+  const invalid = () => res.status(401).json({ message: "Invalid credentials." })
 
   if (!user) return invalid()
 
   if (user.isLocked) {
     return res.status(423).json({
-      error: "Account temporarily locked due to failed attempts. Try again later.",
+      message: "Account temporarily locked due to failed attempts. Try again later.",
     })
   }
 
@@ -39,18 +39,17 @@ export const login = asyncHandler(async (req, res) => {
   user.lastLogin = new Date()
   await user.save()
 
-  const token = signToken({ sub: user._id.toString(), username: user.username })
-  res.cookie(TOKEN_COOKIE, token, cookieOptions())
-  res.json({ user: { id: user._id, username: user.username, lastLogin: user.lastLogin } })
+  const token = signToken({ sub: user._id.toString(), email: user.email })
+  res.json({ token, user: { id: user._id, email: user.email } })
 })
 
-export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie(TOKEN_COOKIE, { ...cookieOptions(), maxAge: 0 })
+export const logout = asyncHandler(async (_req, res) => {
+  // Stateless JWT: client discards the token. Endpoint kept for symmetry.
   res.json({ ok: true })
 })
 
 export const me = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).select("username lastLogin")
-  if (!user) return res.status(401).json({ error: "Not authenticated." })
-  res.json({ user: { id: user._id, username: user.username, lastLogin: user.lastLogin } })
+  const user = await User.findById(req.user.id).select("email")
+  if (!user) return res.status(401).json({ message: "Not authenticated." })
+  res.json({ user: { id: user._id, email: user.email } })
 })

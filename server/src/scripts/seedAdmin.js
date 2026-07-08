@@ -5,7 +5,6 @@ import { env } from "../config/env.js"
 import { User } from "../models/User.js"
 
 function generatePassword() {
-  // Strong random password if none provided (min 8, mixed).
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*"
   let pw = ""
   for (let i = 0; i < 14; i++) pw += chars[Math.floor(Math.random() * chars.length)]
@@ -15,7 +14,7 @@ function generatePassword() {
 async function run() {
   await connectDB()
 
-  const username = (env.SEED_ADMIN_USERNAME || "admin").toLowerCase().trim()
+  const email = (env.SEED_ADMIN_EMAIL || "admin@rkassociates.com").toLowerCase().trim()
   let password = env.SEED_ADMIN_PASSWORD
   let generated = false
   if (!password) {
@@ -25,20 +24,20 @@ async function run() {
 
   const passwordHash = await User.hashPassword(password)
 
-  const existing = await User.findOne({ username })
+  const existing = await User.findOne({ email })
   if (existing) {
     existing.passwordHash = passwordHash
     existing.failedAttempts = 0
     existing.lockUntil = undefined
     await existing.save()
-    console.log(`[seed] Updated existing admin user "${username}".`)
+    console.log(`[seed] Updated existing admin user "${email}".`)
   } else {
-    await User.create({ username, passwordHash })
-    console.log(`[seed] Created admin user "${username}".`)
+    await User.create({ email, passwordHash })
+    console.log(`[seed] Created admin user "${email}".`)
   }
 
   console.log("------------------------------------------------------")
-  console.log(`  Admin username: ${username}`)
+  console.log(`  Admin email:    ${email}`)
   if (generated) {
     console.log(`  Admin password: ${password}`)
     console.log("  (Save this now - it will not be shown again.)")

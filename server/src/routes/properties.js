@@ -1,33 +1,41 @@
 import { Router } from "express"
 import {
-  listPublic,
-  getPublicOne,
+  listProperties,
   nearby,
-  distinctTags,
-  listAdmin,
-  getAdminOne,
+  getOne,
+  uploadMedia,
   createProperty,
   updateProperty,
-  togglePublish,
+  setPublish,
   deleteProperty,
 } from "../controllers/propertyController.js"
-import { requireAuth } from "../middleware/auth.js"
+import { requireAuth, optionalAuth } from "../middleware/auth.js"
 import { upload } from "../middleware/upload.js"
 
 const router = Router()
 
-// Public
-router.get("/", listPublic)
-router.get("/tags", distinctTags)
-router.get("/nearby", nearby)
-router.get("/:id", getPublicOne)
+// List: public by default; `?all=1` with a valid admin token returns everything.
+router.get("/", optionalAuth, listProperties)
+router.get("/near", nearby)
 
-// Admin (protected)
-router.get("/admin/all", requireAuth, listAdmin)
-router.get("/admin/:id", requireAuth, getAdminOne)
-router.post("/admin", requireAuth, upload.array("media", 20), createProperty)
-router.put("/admin/:id", requireAuth, upload.array("media", 20), updateProperty)
-router.patch("/admin/:id/publish", requireAuth, togglePublish)
-router.delete("/admin/:id", requireAuth, deleteProperty)
+// Media upload (admin only). Accepts `images` (multiple) and `video` (single).
+router.post(
+  "/upload",
+  requireAuth,
+  upload.fields([
+    { name: "images", maxCount: 20 },
+    { name: "video", maxCount: 1 },
+  ]),
+  uploadMedia,
+)
+
+// Create / update / publish / delete (admin only).
+router.post("/", requireAuth, createProperty)
+router.patch("/:id/publish", requireAuth, setPublish)
+router.put("/:id", requireAuth, updateProperty)
+router.delete("/:id", requireAuth, deleteProperty)
+
+// Get one: public increments views; `?admin=1` with token skips that.
+router.get("/:id", optionalAuth, getOne)
 
 export default router

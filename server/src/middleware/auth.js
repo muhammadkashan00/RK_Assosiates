@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken"
 import { env } from "../config/env.js"
 
-export const TOKEN_COOKIE = "rk_token"
 // 30 minutes of inactivity => token lifetime (FR-01 session timeout).
 export const TOKEN_TTL_SECONDS = 30 * 60
 
@@ -9,33 +8,39 @@ export function signToken(payload) {
   return jwt.sign(payload, env.JWT_SECRET, { expiresIn: TOKEN_TTL_SECONDS })
 }
 
-export function cookieOptions() {
-  return {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
-    maxAge: TOKEN_TTL_SECONDS * 1000,
-    path: "/",
+/**
+ * Require a valid admin JWT. Reads the token from the Authorization header.
+ */
+export function requireAuth(req, res, next) {
+  try {
+    let token
+    if (req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.slice(7)
+    }
+    if (!token) {
+      return res.status(401).json({ message: "Authentication required." })
+    }
+    const decoded = jwt.verify(token, env.JWT_SECRET)
+    req.user = { id: decoded.sub, email: decoded.email }
+    next()
+  } catch {
+    return res.status(401).json({ message: "Session expired. Please log in again." })
   }
 }
 
 /**
- * Require a valid admin JWT. Reads the token from the httpOnly cookie
- * (never exposed to JS) or the Authorization header as a fallback.
+ * Populate req.user if a valid token is present, but never reject the request.
+ * Used on endpoints that serve both public and admin callers.
  */
-export function requireAuth(req, res, next) {
+export function optionalAuth(req, _res, next) {
   try {
-    let token = req.cookies?.[TOKEN_COOKIE]
-    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
-      token = req.headers.authorization.slice(7)
+    if (req.headers.authorization?.startsWith("Bearer ")) {
+      const token = req.headers.authorization.slice(7)
+      const decoded = jwt.verify(token, env.JWT_SECRET)
+      req.user = { id: decoded.sub, email: decoded.email }
     }
-    if (!token) {
-      return res.status(401).json({ error: "Authentication required." })
-    }
-    const decoded = jwt.verify(token, env.JWT_SECRET)
-    req.user = { id: decoded.sub, username: decoded.username }
-    next()
   } catch {
-    return res.status(401).json({ error: "Session expired. Please log in again." })
+    /* ignore invalid token for optional auth */
   }
+  next()
 }

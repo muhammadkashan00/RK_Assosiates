@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { trackVisit, analyticsSummary } from "../controllers/analyticsController.js"
+import { trackVisit, overview } from "../controllers/analyticsController.js"
 import { requireAuth } from "../middleware/auth.js"
 
 const router = Router()
@@ -8,6 +8,6 @@ const router = Router()
 router.post("/track", trackVisit)
 
 // Admin dashboard data.
-router.get("/summary", requireAuth, analyticsSummary)
+router.get("/overview", requireAuth, overview)
 
 export default router

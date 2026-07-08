@@ -6,7 +6,7 @@ export const apiLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many requests. Please slow down." },
+  message: { message: "Too many requests. Please slow down." },
 })
 
 // Strict limiter for login (FR-01): 5 attempts per 15 minutes per IP.
@@ -16,15 +16,15 @@ export const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  message: { error: "Too many login attempts. Try again in 15 minutes." },
+  message: { message: "Too many login attempts. Try again in 15 minutes." },
 })
 
-// WhatsApp inquiry limiter (FR-07): max 1 request per IP per hour, per property.
+// WhatsApp / lead inquiry limiter (FR-07): guard against spam while allowing
+// a visitor to inquire about several properties in a session.
 export const whatsappLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 1,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip}:${req.params.id || req.body?.propertyId || "any"}`,
-  message: { error: "You have already requested this property recently. Please try later." },
+  message: { message: "Too many inquiries. Please try again later." },
 })

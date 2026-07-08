@@ -1,52 +1,45 @@
 import { Property } from "../models/Property.js"
 import { asyncHandler } from "../middleware/error.js"
 import { uploadBuffer, cloudinaryConfigured } from "../config/cloudinary.js"
-import { normalizePolygon } from "../utils/geo.js"
 
-/* ----------------------------- Public queries ---------------------------- */
-
-// Build a filter for public listing (only published properties).
-function buildPublicFilter(query) {
-  const filter = { isPublished: true }
-
-  if (query.minPrice || query.maxPrice) {
-    filter.price = {}
-    if (query.minPrice) filter.price.$gte = Number(query.minPrice)
-    if (query.maxPrice) filter.price.$lte = Number(query.maxPrice)
-  }
-  if (query.rooms) filter.rooms = { $gte: Number(query.rooms) }
-  if (query.minArea || query.maxArea) {
-    filter.areaSqft = {}
-    if (query.minArea) filter.areaSqft.$gte = Number(query.minArea)
-    if (query.maxArea) filter.areaSqft.$lte = Number(query.maxArea)
-  }
-  if (query.status) filter.status = query.status
-  if (query.tag) filter.tags = query.tag
-  if (query.q) filter.$text = { $search: String(query.q) }
-  return filter
+const SORTS = {
+  newest: { createdAt: -1 },
+  views: { views: -1 },
+  "price-asc": { price: 1 },
+  "price-desc": { price: -1 },
+  "area-desc": { areaSqft: -1 },
 }
 
-export const listPublic = asyncHandler(async (req, res) => {
-  const page = Math.max(1, Number(req.query.page) || 1)
-  const limit = Math.min(48, Number(req.query.limit) || 12)
-  const filter = buildPublicFilter(req.query)
+/* ------------------------------ List (public + admin) --------------------- */
 
-  const [items, total] = await Promise.all([
-    Property.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-    Property.countDocuments(filter),
-  ])
+// The client always sends the Bearer token; `optionalAuth` populates req.user
+// when it is valid. `?all=1` returns every property but ONLY for authed admins.
+export const listProperties = asyncHandler(async (req, res) => {
+  const wantAll = req.query.all === "1"
+  const isAdmin = wantAll && req.user
 
-  res.json({ items, total, page, pages: Math.ceil(total / limit) })
-})
+  const filter = {}
+  if (!isAdmin) filter.published = true
 
-export const getPublicOne = asyncHandler(async (req, res) => {
-  const property = await Property.findOne({ _id: req.params.id, isPublished: true }).lean()
-  if (!property) return res.status(404).json({ error: "Property not found." })
-  res.json({ property })
+  if (!isAdmin) {
+    if (req.query.minPrice || req.query.maxPrice) {
+      filter.price = {}
+      if (req.query.minPrice) filter.price.$gte = Number(req.query.minPrice)
+      if (req.query.maxPrice) filter.price.$lte = Number(req.query.maxPrice)
+    }
+    if (req.query.minRooms) filter.rooms = { $gte: Number(req.query.minRooms) }
+    if (req.query.status) filter.status = req.query.status
+    if (req.query.q) {
+      const rx = new RegExp(String(req.query.q).trim(), "i")
+      filter.$or = [{ title: rx }, { buildingName: rx }, { address: rx }]
+    }
+  }
+
+  const limit = Math.min(200, Number(req.query.limit) || 24)
+  const sort = SORTS[req.query.sort] || SORTS.newest
+
+  const properties = await Property.find(filter).sort(sort).limit(limit).lean()
+  res.json({ properties })
 })
 
 // FR-11: properties whose highlighted area contains the visitor's location.
@@ -54,143 +47,108 @@ export const nearby = asyncHandler(async (req, res) => {
   const lng = Number(req.query.lng)
   const lat = Number(req.query.lat)
   if (Number.isNaN(lng) || Number.isNaN(lat)) {
-    return res.status(400).json({ error: "lng and lat are required." })
+    return res.status(400).json({ message: "lat and lng are required." })
   }
-  const items = await Property.find({
-    isPublished: true,
-    areaHighlight: {
-      $geoIntersects: {
-        $geometry: { type: "Point", coordinates: [lng, lat] },
-      },
+  const properties = await Property.find({
+    published: true,
+    area: {
+      $geoIntersects: { $geometry: { type: "Point", coordinates: [lng, lat] } },
     },
   })
-    .limit(12)
+    .limit(24)
     .lean()
-  res.json({ items })
+  res.json({ properties })
 })
 
-export const distinctTags = asyncHandler(async (req, res) => {
-  const tags = await Property.distinct("tags", { isPublished: true })
-  res.json({ tags: tags.filter(Boolean).sort() })
+/* ------------------------------- Get one --------------------------------- */
+
+export const getOne = asyncHandler(async (req, res) => {
+  const isAdmin = req.query.admin === "1" && req.user
+  const query = isAdmin ? { _id: req.params.id } : { _id: req.params.id, published: true }
+  const property = await Property.findOne(query)
+  if (!property) return res.status(404).json({ message: "Property not found." })
+
+  if (isAdmin) {
+    return res.json({ property })
+  }
+
+  // Count a public view.
+  property.views = (property.views || 0) + 1
+  await property.save()
+
+  // "Nearby" related = other published properties whose area intersects this
+  // property's marker; fall back to most recent listings.
+  let related = []
+  if (property.marker?.lng != null && property.marker?.lat != null) {
+    related = await Property.find({
+      _id: { $ne: property._id },
+      published: true,
+      area: {
+        $geoIntersects: {
+          $geometry: { type: "Point", coordinates: [property.marker.lng, property.marker.lat] },
+        },
+      },
+    })
+      .limit(3)
+      .lean()
+  }
+  if (related.length === 0) {
+    related = await Property.find({ _id: { $ne: property._id }, published: true })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean()
+  }
+
+  res.json({ property: property.toObject(), related })
 })
 
 /* ------------------------------- Admin CRUD ------------------------------ */
 
-function parseBody(body) {
-  const data = { ...body }
-  // Numbers can arrive as strings from multipart forms.
-  for (const key of ["price", "areaSqft", "rooms", "baths"]) {
-    if (data[key] !== undefined && data[key] !== "") data[key] = Number(data[key])
-  }
-  if (typeof data.tags === "string") {
-    data.tags = data.tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-  }
-  if (typeof data.areaHighlight === "string" && data.areaHighlight) {
-    try {
-      data.areaHighlight = JSON.parse(data.areaHighlight)
-    } catch {
-      data.areaHighlight = undefined
-    }
-  }
-  if (data.areaHighlight) {
-    const normalized = normalizePolygon(data.areaHighlight)
-    data.areaHighlight = normalized || undefined
-  }
-  if (typeof data.isPublished === "string") {
-    data.isPublished = data.isPublished === "true"
-  }
-  if (typeof data.existingImages === "string") {
-    try {
-      data.existingImages = JSON.parse(data.existingImages)
-    } catch {
-      data.existingImages = []
-    }
-  }
-  if (typeof data.existingVideos === "string") {
-    try {
-      data.existingVideos = JSON.parse(data.existingVideos)
-    } catch {
-      data.existingVideos = []
-    }
-  }
-  return data
-}
-
-async function handleUploads(files) {
-  const images = []
-  const videos = []
-  if (!files || files.length === 0) return { images, videos }
+export const uploadMedia = asyncHandler(async (req, res) => {
   if (!cloudinaryConfigured) {
-    throw Object.assign(new Error("Media uploads are not configured (Cloudinary keys missing)."), {
-      status: 400,
-      expose: true,
-    })
+    return res.status(400).json({ message: "Media uploads are not configured (Cloudinary keys missing)." })
   }
+  const files = [...(req.files?.images || []), ...(req.files?.video || [])]
+  if (files.length === 0) return res.status(400).json({ message: "No files uploaded." })
+
+  const urls = []
   for (const file of files) {
     const type = file.mimetype.startsWith("video/") ? "video" : "image"
     const result = await uploadBuffer(file.buffer, type)
-    if (type === "video") videos.push(result.secure_url)
-    else images.push(result.secure_url)
+    urls.push(result.secure_url)
   }
-  return { images, videos }
-}
-
-export const listAdmin = asyncHandler(async (req, res) => {
-  const items = await Property.find().sort({ createdAt: -1 }).lean()
-  res.json({ items })
-})
-
-export const getAdminOne = asyncHandler(async (req, res) => {
-  const property = await Property.findById(req.params.id).lean()
-  if (!property) return res.status(404).json({ error: "Property not found." })
-  res.json({ property })
+  res.json({ urls })
 })
 
 export const createProperty = asyncHandler(async (req, res) => {
-  const data = parseBody(req.body)
-  if (!data.title || data.price === undefined || data.areaSqft === undefined) {
-    return res.status(400).json({ error: "Title, price and area are required." })
+  const data = req.body || {}
+  if (!data.title || data.price === undefined || data.price === "") {
+    return res.status(400).json({ message: "Title and price are required." })
   }
-  const { images, videos } = await handleUploads(req.files)
-  const property = await Property.create({
-    ...data,
-    images: [...(data.existingImages || []), ...images],
-    videos: [...(data.existingVideos || []), ...videos],
-  })
+  const property = await Property.create(data)
   res.status(201).json({ property })
 })
 
 export const updateProperty = asyncHandler(async (req, res) => {
-  const data = parseBody(req.body)
-  const { images, videos } = await handleUploads(req.files)
-
-  const update = { ...data }
-  delete update.existingImages
-  delete update.existingVideos
-  update.images = [...(data.existingImages || []), ...images]
-  update.videos = [...(data.existingVideos || []), ...videos]
-
-  const property = await Property.findByIdAndUpdate(req.params.id, update, {
+  const property = await Property.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
   })
-  if (!property) return res.status(404).json({ error: "Property not found." })
+  if (!property) return res.status(404).json({ message: "Property not found." })
   res.json({ property })
 })
 
-export const togglePublish = asyncHandler(async (req, res) => {
+export const setPublish = asyncHandler(async (req, res) => {
   const property = await Property.findById(req.params.id)
-  if (!property) return res.status(404).json({ error: "Property not found." })
-  property.isPublished = !property.isPublished
+  if (!property) return res.status(404).json({ message: "Property not found." })
+  property.published =
+    typeof req.body?.published === "boolean" ? req.body.published : !property.published
   await property.save()
   res.json({ property })
 })
 
 export const deleteProperty = asyncHandler(async (req, res) => {
   const property = await Property.findByIdAndDelete(req.params.id)
-  if (!property) return res.status(404).json({ error: "Property not found." })
+  if (!property) return res.status(404).json({ message: "Property not found." })
   res.json({ ok: true })
 })
