@@ -1,3 +1,4 @@
 - [RK Associates stack](rk-associates-stack.md) — MongoDB-only app; api-server port 8080, frontend on 22342; Vite proxies /api → localhost:8080
 - [RK Associates Lead statuses](rk-associates-lead-statuses.md) — expanded enum: new/contacted/closed (+ legacy initiated/converted kept for migration safety)
 - [RK Associates secrets limitation](rk-associates-secrets.md) — app credentials live in [userenv.shared] only; encrypted Secrets store needs user to enter via requestEnvVar (blocks execution); setEnvVars writes plaintext to .replit
+- [RK Associates mobile API pattern](rk-mobile-api.md) — Mode B: hand-written fetch in lib/api.ts, not @workspace/api-client-react; mobile mirrors web API layer with native fetch.

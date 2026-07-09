@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "RK Associates Mobile"
+version = "1.0.0"
+id = "artifacts/rk-associates-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 22340
+
+[services.development]
+run = "pnpm --filter @workspace/rk-associates-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/rk-associates-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/rk-associates-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "22340"
+BASE_PATH = "/mobile/"
