@@ -12,11 +12,14 @@ interface Lead {
   createdAt: string
 }
 
-const statusConfig: Record<Lead["status"], { label: string; classes: string }> = {
+const statusConfig: Record<string, { label: string; classes: string }> = {
   new: { label: "New", classes: "bg-blue-100 text-blue-700" },
   contacted: { label: "Contacted", classes: "bg-amber-100 text-amber-700" },
   closed: { label: "Closed", classes: "bg-slate/10 text-slate/60" },
+  initiated: { label: "New", classes: "bg-blue-100 text-blue-700" },
+  converted: { label: "Closed", classes: "bg-slate/10 text-slate/60" },
 }
+const defaultStatus = statusConfig["new"]
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([])

@@ -8,6 +8,7 @@ const router = Router();
 
 router.post("/", whatsappLimiter, createLead);
 router.get("/", requireAuth, listLeads);
+router.patch("/:id/status", requireAuth, updateLeadStatus);
 router.patch("/:id", requireAuth, updateLeadStatus);
 
 export default router;
