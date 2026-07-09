@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { api, type Property } from "../lib/api"
 import { PropertyGrid } from "../components/property/PropertyGrid"
@@ -25,28 +25,29 @@ export default function Listings() {
   const [nearMode, setNearMode] = useState(false)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
 
-  // Resolve coords first, then fire the first load
-  const geoReady = useRef(false)
+  // Use state (not ref) so the load effect re-fires once GPS resolves.
+  // Starts false when near=1 so we don't fire an empty fetch before coords arrive.
+  const [geoReady, setGeoReady] = useState(!near)
 
   useEffect(() => {
     if (!near) {
-      geoReady.current = true
+      setGeoReady(true)
       setNearMode(false)
       return
     }
     if (!("geolocation" in navigator)) {
-      geoReady.current = true
+      setGeoReady(true)
       return
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setNearMode(true)
-        geoReady.current = true
+        setGeoReady(true)
       },
       () => {
-        geoReady.current = true
         setNearMode(false)
+        setGeoReady(true)
       },
       { enableHighAccuracy: true, timeout: 8000 },
     )
@@ -72,8 +73,9 @@ export default function Listings() {
   }, [filters, nearMode, coords])
 
   useEffect(() => {
+    if (!geoReady) return
     load()
-  }, [load])
+  }, [load, geoReady])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -104,7 +106,17 @@ export default function Listings() {
         </div>
       )}
 
-      <PropertyGrid properties={properties} loading={loading} />
+      {!geoReady ? (
+        <div className="flex flex-col items-center gap-3 py-20 text-slate/60">
+          <svg className="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          <span className="text-sm">Getting your location…</span>
+        </div>
+      ) : (
+        <PropertyGrid properties={properties} loading={loading} />
+      )}
     </div>
   )
 }
