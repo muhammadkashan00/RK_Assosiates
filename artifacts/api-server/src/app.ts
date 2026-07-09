@@ -1,7 +1,9 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import mongoRouter from "./mongo/routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -26,9 +28,11 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.use("/api", router);
+app.use("/api", mongoRouter);
 
 export default app;
