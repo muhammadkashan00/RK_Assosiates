@@ -22,3 +22,9 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
+MONGODB_CONNECTION_STRING = "mongodb+srv://kashanmuhammad101_db_user:mkashan11@cluster0.kkfieey.mongodb.net/?appName=Cluster0"
+JWT_SECRET = "#Mkashan11"
+CLOUDINARY_CLOUD_NAME = "umplcwth"
+CLOUDINARY_API_KEY = "974267561624291"
+CLOUDINARY_API_SECRET = "afmwPSgLmP7ywsBL-25O6YxpL7U"
+WHATSAPP_NUMBER = "+923075597971"
