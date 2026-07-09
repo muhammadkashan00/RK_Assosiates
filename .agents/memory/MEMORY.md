@@ -1,0 +1,2 @@
+- [RK Associates stack](rk-associates-stack.md) — MongoDB-only app; api-server port 8080, frontend on 22342; Vite proxies /api → localhost:8080
+- [RK Associates Lead statuses](rk-associates-lead-statuses.md) — expanded enum: new/contacted/closed (+ legacy initiated/converted kept for migration safety)

@@ -53,7 +53,8 @@ export const listLeads = asyncHandler(async (_req, res) => {
 
 export const updateLeadStatus = asyncHandler(async (req, res) => {
   const { status } = req.body || {};
-  if (!["initiated", "converted"].includes(status)) {
+  const validStatuses = ["new", "contacted", "closed", "initiated", "converted"];
+  if (!validStatuses.includes(status)) {
     return res.status(400).json({ message: "Invalid status." });
   }
   const lead = await Lead.findByIdAndUpdate(req.params.id, { status }, { new: true });

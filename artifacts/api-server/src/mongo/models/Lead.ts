@@ -12,8 +12,8 @@ const leadSchema = new Schema(
     ip: { type: String },
     status: {
       type: String,
-      enum: ["initiated", "converted"],
-      default: "initiated",
+      enum: ["new", "contacted", "closed", "initiated", "converted"],
+      default: "new",
     },
   },
   { timestamps: true },
