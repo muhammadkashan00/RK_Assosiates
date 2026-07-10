@@ -39,9 +39,7 @@
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
 
-  html {
-    scroll-behavior: smooth;
-  }
+  html { scroll-behavior: smooth; }
 
   body {
     font-family: var(--font-sans);
@@ -52,14 +50,76 @@
     transition: background-color 0.3s, color 0.3s;
   }
 
+  /* ── Dark mode base ── */
   [data-theme="dark"] body {
-    background-color: #0f1923;
-    color: #d4cfc9;
+    background-color: #0d1b2a;
+    color: #cdd5de;
   }
 
   [data-theme="dark"] {
-    --color-beige: #0f1923;
-    --color-slate: #d4cfc9;
+    --color-beige: #0d1b2a;
+    --color-slate: #cdd5de;
+  }
+
+  /* ── Cards / white surfaces ── */
+  [data-theme="dark"] .bg-white {
+    background-color: #162434 !important;
+  }
+
+  [data-theme="dark"] .bg-beige,
+  [data-theme="dark"] .bg-beige\/40 {
+    background-color: #0d1b2a !important;
+  }
+
+  /* ── Text ── */
+  [data-theme="dark"] .text-navy {
+    color: #e8dfc8 !important;
+  }
+  [data-theme="dark"] .text-slate\/60,
+  [data-theme="dark"] .text-slate\/70,
+  [data-theme="dark"] .text-slate\/80 {
+    color: rgba(205, 213, 222, 0.65) !important;
+  }
+  [data-theme="dark"] .text-slate\/50,
+  [data-theme="dark"] .text-slate\/40 {
+    color: rgba(205, 213, 222, 0.45) !important;
+  }
+
+  /* ── Borders & rings ── */
+  [data-theme="dark"] .ring-navy\/5,
+  [data-theme="dark"] .ring-navy\/10 {
+    --tw-ring-color: rgba(255, 255, 255, 0.06) !important;
+  }
+  [data-theme="dark"] .border-slate\/20,
+  [data-theme="dark"] .border-slate\/10,
+  [data-theme="dark"] .border-slate\/15 {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  [data-theme="dark"] .divide-slate\/10 > * + * {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* ── Inputs ── */
+  [data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+  [data-theme="dark"] select,
+  [data-theme="dark"] textarea {
+    background-color: #0d1b2a !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e8dfc8 !important;
+  }
+  [data-theme="dark"] input::placeholder,
+  [data-theme="dark"] textarea::placeholder {
+    color: rgba(205, 213, 222, 0.35) !important;
+  }
+
+  /* ── Property cards hover ── */
+  [data-theme="dark"] .hover\:bg-beige\/30:hover {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
+
+  /* ── Shadows ── */
+  [data-theme="dark"] .shadow-card {
+    box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.6) !important;
   }
 }
 
@@ -88,7 +148,7 @@
   }
 
   [data-theme="dark"] .glass-card {
-    background: rgba(26, 42, 58, 0.85);
+    background: rgba(22, 36, 52, 0.88);
     border: 1px solid rgba(201, 167, 75, 0.15);
   }
 
@@ -150,7 +210,7 @@
 
   [data-theme="dark"] .btn-outline {
     border-color: rgba(201, 167, 75, 0.3);
-    color: #d4cfc9;
+    color: #cdd5de;
   }
   [data-theme="dark"] .btn-outline:hover { background-color: rgba(201, 167, 75, 0.08); }
 
@@ -171,9 +231,9 @@
   }
 
   [data-theme="dark"] .input {
-    background-color: #1a2a3a;
+    background-color: #0d1b2a;
     border-color: rgba(255,255,255,0.1);
-    color: #f5f0eb;
+    color: #e8dfc8;
   }
 
   .label {
@@ -228,9 +288,9 @@
   }
 
   [data-theme="dark"] .dark\:bg-navy-light { background-color: #1a2a3a; }
-  [data-theme="dark"] .dark\:bg-\[#0f1923\] { background-color: #0f1923; }
-  [data-theme="dark"] .dark\:text-beige { color: #f5f0eb; }
-  [data-theme="dark"] .dark\:text-beige\/50 { color: rgba(245,240,235,0.5); }
+  [data-theme="dark"] .dark\:bg-\[#0f1923\] { background-color: #0d1b2a; }
+  [data-theme="dark"] .dark\:text-beige { color: #e8dfc8; }
+  [data-theme="dark"] .dark\:text-beige\/50 { color: rgba(232,223,200,0.5); }
   [data-theme="dark"] .dark\:border-white\/10 { border-color: rgba(255,255,255,0.1); }
   [data-theme="dark"] .dark\:ring-white\/10 { --tw-ring-color: rgba(255,255,255,0.1); }
 }
@@ -241,6 +301,17 @@
   z-index: 0;
 }
 .leaflet-control-attribution { font-size: 10px; }
+
+/* Area map tooltip label */
+.area-label-tooltip {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(201, 167, 75, 0.5) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  padding: 3px 8px !important;
+  white-space: nowrap !important;
+}
+.area-label-tooltip::before { display: none !important; }
 
 /* Markdown rendered content */
 .prose-rk h1, .prose-rk h2, .prose-rk h3 {

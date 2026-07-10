@@ -1,22 +1,8 @@
 // @ts-nocheck
 import { Property } from "../models/Property";
+import { PropertyView } from "../models/PropertyView";
 import { asyncHandler } from "../middleware/error";
 import { uploadBuffer, cloudinaryConfigured } from "../config/cloudinary";
-
-const viewCache = new Map<string, number>();
-const VIEW_TTL = 24 * 60 * 60 * 1000;
-
-function hasViewed(propertyId: string, ip: string): boolean {
-  const key = `${propertyId}:${ip}`;
-  const last = viewCache.get(key);
-  if (last && Date.now() - last < VIEW_TTL) return true;
-  viewCache.set(key, Date.now());
-  if (viewCache.size > 50000) {
-    const cutoff = Date.now() - VIEW_TTL;
-    for (const [k, t] of viewCache) if (t < cutoff) viewCache.delete(k);
-  }
-  return false;
-}
 
 const SORTS = {
   newest: { createdAt: -1 },
@@ -81,10 +67,22 @@ export const getOne = asyncHandler(async (req, res) => {
     return res.json({ property });
   }
 
-  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown");
-  if (!hasViewed(String(property._id), ip)) {
+  // Deduplicate views using MongoDB TTL collection (works across serverless restarts)
+  const ip = String(
+    req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() ||
+    req.socket?.remoteAddress ||
+    "unknown"
+  );
+
+  try {
+    // insertOne with unique index — throws duplicate key error if already viewed within 24h
+    await PropertyView.create({ propertyId: property._id, ip });
+    // New unique view — increment counter atomically
+    await Property.findByIdAndUpdate(property._id, { $inc: { views: 1 } });
     property.views = (property.views || 0) + 1;
-    await property.save();
+  } catch (err: any) {
+    // E11000 duplicate key = already viewed, skip increment
+    if (err?.code !== 11000) throw err;
   }
 
   let related = [];

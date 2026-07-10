@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate, useLocation, Link } from "react-router-dom"
 import { useAuth } from "../../hooks/useAuth"
 
 export default function Login() {
@@ -28,9 +28,25 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-navy px-4">
+      {/* Home link */}
+      <div className="mb-6 w-full max-w-md">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-beige/60 transition hover:bg-white/10 hover:text-beige"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to site
+        </Link>
+      </div>
+
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold-dark font-serif text-xl font-bold text-navy shadow">
+            RK
+          </div>
           <p className="font-serif text-2xl font-bold text-navy">RK Associates</p>
           <p className="mt-1 text-sm text-slate/60">Admin sign in</p>
         </div>
