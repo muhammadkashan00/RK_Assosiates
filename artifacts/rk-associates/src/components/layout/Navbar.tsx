@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { useTheme } from "../../context/ThemeContext"
+import { WhatsAppInquiry } from "../property/WhatsAppInquiry"
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -44,6 +45,19 @@ export function Navbar() {
           >
             Near You
           </Link>
+          <Link
+            to="/favorites"
+            className="hidden text-sm font-medium text-beige/80 transition hover:text-gold sm:block"
+          >
+            Favorites
+          </Link>
+          <div className="hidden sm:block">
+            <WhatsAppInquiry
+              label="List Your Property"
+              defaultMessage="Hi, I'd like to list my property with RK Associates."
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-4 py-2 text-sm font-semibold text-navy shadow-sm transition hover:bg-gold-dark hover:text-white"
+            />
+          </div>
 
           <button
             onClick={toggle}
@@ -69,10 +83,6 @@ export function Navbar() {
             )}
           </button>
 
-          <Link to="/admin/login" className="btn-gold px-3 py-1.5 text-xs hidden sm:inline-flex">
-            Admin
-          </Link>
-
           <button
             className="flex h-9 w-9 items-center justify-center rounded-lg text-beige/70 hover:bg-white/10 sm:hidden"
             onClick={() => setMenuOpen((o) => !o)}
@@ -94,7 +104,14 @@ export function Navbar() {
           <div className="flex flex-col gap-2">
             <Link to="/listings" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-beige/80 hover:bg-white/10 hover:text-gold">Properties</Link>
             <Link to="/listings?near=1" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-beige/80 hover:bg-white/10 hover:text-gold">Near You</Link>
-            <Link to="/admin/login" onClick={() => setMenuOpen(false)} className="rounded-lg bg-gold px-3 py-2.5 text-sm font-semibold text-navy text-center">Admin</Link>
+            <Link to="/favorites" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-beige/80 hover:bg-white/10 hover:text-gold">Favorites</Link>
+            <div className="mt-1 px-3">
+              <WhatsAppInquiry
+                label="List Your Property"
+                defaultMessage="Hi, I'd like to list my property with RK Associates."
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-gold px-4 py-2.5 text-sm font-semibold text-navy shadow-sm transition hover:bg-gold-dark hover:text-white"
+              />
+            </div>
           </div>
         </div>
       )}

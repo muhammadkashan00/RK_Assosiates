@@ -4,15 +4,24 @@ import { api } from "../../lib/api"
 export function WhatsAppInquiry({
   propertyId,
   propertyTitle,
+  label = "Inquire on WhatsApp",
+  className,
+  defaultMessage,
 }: {
-  propertyId: string
-  propertyTitle: string
+  propertyId?: string
+  propertyTitle?: string
+  label?: string
+  className?: string
+  defaultMessage?: string
 }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [message, setMessage] = useState(
-    `Hi, I'm interested in "${propertyTitle}". Please share more details.`,
+    defaultMessage ||
+      (propertyTitle
+        ? `Hi, I'm interested in "${propertyTitle}". Please share more details.`
+        : "Hi, I'd like to know more about your properties."),
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -52,13 +61,16 @@ export function WhatsAppInquiry({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 py-3 font-semibold text-white shadow-sm transition hover:brightness-95"
+        className={
+          className ||
+          "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 py-3 font-semibold text-white shadow-sm transition hover:brightness-95"
+        }
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M17.5 14.4c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.2-.7.2s-.8.9-1 1.1c-.2.2-.4.2-.7.1-1.8-.9-3-1.6-4.2-3.6-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.6s-.7-1.6-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.4-1.2 1.2-1.2 2.8s1.2 3.3 1.4 3.5c.2.2 2.4 3.7 5.9 5.1 2.2.9 3 1 4.1.9.7-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.4z" />
           <path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.9.9-2.7-.2-.3A8 8 0 1 1 12 20z" />
         </svg>
-        Inquire on WhatsApp
+        {label}
       </button>
 
       {open && (

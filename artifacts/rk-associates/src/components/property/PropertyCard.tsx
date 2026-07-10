@@ -2,10 +2,11 @@ import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
 import type { Property } from "../../lib/api"
 import { formatPrice, formatNumber, statusLabels, statusStyles } from "../../lib/format"
+import { FavoriteButton } from "./FavoriteButton"
 
 function Spec({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-slate/80">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate sm:text-sm dark:text-beige/80">
       <span className="text-gold-dark">{icon}</span>
       {label}
     </span>
@@ -43,20 +44,26 @@ export function PropertyCard({ property }: { property: Property }) {
           >
             {statusLabels[property.status]}
           </span>
+          <FavoriteButton
+            propertyId={property._id}
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-navy/5 transition dark:bg-navy-light/90 dark:ring-white/10"
+          />
           <span className="absolute bottom-3 right-3 rounded-lg bg-navy/90 px-3 py-1.5 font-serif text-sm font-semibold text-beige">
             {formatPrice(property.price)}
           </span>
         </div>
 
-        <div className="p-5">
-          <h3 className="line-clamp-1 font-serif text-lg font-semibold text-navy">
+        <div className="p-3 sm:p-5">
+          <h3 className="line-clamp-1 font-serif text-base font-semibold text-navy sm:text-lg">
             {property.title}
           </h3>
           {property.buildingName && (
-            <p className="mt-0.5 line-clamp-1 text-sm text-slate/70">{property.buildingName}</p>
+            <p className="mt-0.5 line-clamp-1 text-xs text-slate/70 sm:text-sm dark:text-beige/60">
+              {property.buildingName}
+            </p>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate/10 pt-4">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-slate/10 pt-3 sm:mt-4 sm:gap-x-4 sm:gap-y-2 sm:pt-4">
             <Spec
               icon={
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -5,6 +5,8 @@ import { api, type Property } from "../lib/api"
 import { AreaMap } from "../components/map/AreaMap"
 import { WhatsAppInquiry } from "../components/property/WhatsAppInquiry"
 import { PropertyGrid } from "../components/property/PropertyGrid"
+import { FavoriteButton } from "../components/property/FavoriteButton"
+import { ShareButton } from "../components/property/ShareButton"
 import { formatPrice, formatNumber, statusLabels, statusStyles } from "../lib/format"
 
 export default function PropertyDetail() {
@@ -136,13 +138,22 @@ export default function PropertyDetail() {
 
         <aside className="lg:col-span-1">
           <div className="sticky top-24 rounded-2xl bg-white p-6 shadow-card ring-1 ring-navy/5">
-            <span
-              className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                statusStyles[property.status]
-              }`}
-            >
-              {statusLabels[property.status]}
-            </span>
+            <div className="flex items-center justify-between">
+              <span
+                className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                  statusStyles[property.status]
+                }`}
+              >
+                {statusLabels[property.status]}
+              </span>
+              <div className="flex items-center gap-2">
+                <ShareButton title={property.title} text={`Check out ${property.title} on RK Associates`} />
+                <FavoriteButton
+                  propertyId={property._id}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate/20 text-slate/50 transition hover:text-rose-500 dark:border-white/15 dark:text-beige/70"
+                />
+              </div>
+            </div>
             <h1 className="mt-3 font-serif text-2xl font-bold text-navy">{property.title}</h1>
             {property.buildingName && (
               <p className="mt-1 text-slate/70">{property.buildingName}</p>
@@ -157,19 +168,19 @@ export default function PropertyDetail() {
 
             <dl className="mt-6 grid grid-cols-3 gap-3 border-y border-slate/10 py-4 text-center">
               <div>
-                <dt className="text-xs text-slate/60">Rooms</dt>
+                <dt className="text-xs font-medium text-slate dark:text-beige/80">Rooms</dt>
                 <dd className="font-serif text-lg font-semibold text-navy">
                   {formatNumber(property.rooms)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate/60">Baths</dt>
+                <dt className="text-xs font-medium text-slate dark:text-beige/80">Baths</dt>
                 <dd className="font-serif text-lg font-semibold text-navy">
                   {formatNumber(property.baths)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate/60">Area</dt>
+                <dt className="text-xs font-medium text-slate dark:text-beige/80">Area</dt>
                 <dd className="font-serif text-lg font-semibold text-navy">
                   {formatNumber(property.areaSqft)}
                 </dd>

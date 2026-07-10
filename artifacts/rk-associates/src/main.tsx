@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom"
 import App from "./App"
 import { AuthProvider } from "./hooks/useAuth"
 import { ThemeProvider } from "./context/ThemeContext"
+import { FavoritesProvider } from "./context/FavoritesContext"
 import "./index.css"
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -11,7 +12,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <App />
+          <FavoritesProvider>
+            <App />
+          </FavoritesProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

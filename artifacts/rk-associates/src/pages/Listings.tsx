@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { api, type Property } from "../lib/api"
 import { PropertyGrid } from "../components/property/PropertyGrid"
 import { FilterBar, emptyFilters, type Filters } from "../components/property/FilterBar"
+import { Pagination } from "../components/property/Pagination"
+
+const PAGE_SIZE = 10
 
 function buildQuery(filters: Filters): string {
   const params = new URLSearchParams()
@@ -21,6 +24,7 @@ export default function Listings() {
   const [loading, setLoading] = useState(true)
   const [nearMode, setNearMode] = useState(false)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [page, setPage] = useState(1)
 
   // Use state (not ref) so the load effect re-fires once GPS resolves.
   // Starts false when near=1 so we don't fire an empty fetch before coords arrive.
@@ -74,6 +78,21 @@ export default function Listings() {
     load()
   }, [load, geoReady])
 
+  useEffect(() => {
+    setPage(1)
+  }, [filters, nearMode, coords])
+
+  const totalPages = Math.max(1, Math.ceil(properties.length / PAGE_SIZE))
+  const pagedProperties = useMemo(
+    () => properties.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [properties, page],
+  )
+
+  function goToPage(p: number) {
+    setPage(Math.min(Math.max(1, p), totalPages))
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-6">
@@ -112,7 +131,12 @@ export default function Listings() {
           <span className="text-sm">Getting your location…</span>
         </div>
       ) : (
-        <PropertyGrid properties={properties} loading={loading} />
+        <>
+          <PropertyGrid properties={pagedProperties} loading={loading} />
+          {!loading && (
+            <Pagination page={page} totalPages={totalPages} onChange={goToPage} />
+          )}
+        </>
       )}
     </div>
   )
