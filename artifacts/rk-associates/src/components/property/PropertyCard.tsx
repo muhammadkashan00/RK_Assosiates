@@ -6,7 +6,7 @@ import { FavoriteButton } from "./FavoriteButton"
 
 function Spec({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate sm:text-sm dark:text-beige/80">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-black sm:text-sm dark:text-white">
       <span className="text-gold-dark">{icon}</span>
       {label}
     </span>

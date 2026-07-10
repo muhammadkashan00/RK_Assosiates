@@ -168,19 +168,19 @@ export default function PropertyDetail() {
 
             <dl className="mt-6 grid grid-cols-3 gap-3 border-y border-slate/10 py-4 text-center">
               <div>
-                <dt className="text-xs font-medium text-slate dark:text-beige/80">Rooms</dt>
+                <dt className="text-xs font-medium text-black dark:text-white">Rooms</dt>
                 <dd className="font-serif text-lg font-semibold text-navy">
                   {formatNumber(property.rooms)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-slate dark:text-beige/80">Baths</dt>
+                <dt className="text-xs font-medium text-black dark:text-white">Baths</dt>
                 <dd className="font-serif text-lg font-semibold text-navy">
                   {formatNumber(property.baths)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-slate dark:text-beige/80">Area</dt>
+                <dt className="text-xs font-medium text-black dark:text-white">Area</dt>
                 <dd className="font-serif text-lg font-semibold text-navy">
                   {formatNumber(property.areaSqft)}
                 </dd>
