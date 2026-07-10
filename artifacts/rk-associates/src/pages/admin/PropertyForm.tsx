@@ -30,6 +30,30 @@ const empty: FormState = {
   published: true,
 }
 
+const DRAFT_KEY = "rk_property_draft"
+
+function loadDraft(): { form: FormState; ring: number[][]; marker: { lat: number; lng: number } | null } | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(form: FormState, ring: number[][], marker: { lat: number; lng: number } | null) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, ring, marker }))
+  } catch {}
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY)
+  } catch {}
+}
+
 const inputClass =
   "w-full rounded-lg border border-slate/20 px-3 py-2 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/30"
 
@@ -71,18 +95,24 @@ export default function PropertyForm() {
   const editing = Boolean(id)
   const navigate = useNavigate()
 
-  const [form, setForm] = useState<FormState>(empty)
+  // For new forms, restore draft from localStorage
+  const draft = !editing ? loadDraft() : null
+
+  const [form, setForm] = useState<FormState>(draft?.form ?? empty)
   const [images, setImages] = useState<string[]>([])
   const [video, setVideo] = useState<string>("")
-  const [ring, setRing] = useState<number[][]>([])
-  const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(null)
+  const [ring, setRing] = useState<number[][]>(draft?.ring ?? [])
+  const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(draft?.marker ?? null)
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState("")
+  const [draftSaved, setDraftSaved] = useState(false)
   const imgInput = useRef<HTMLInputElement>(null)
   const vidInput = useRef<HTMLInputElement>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Load existing property when editing
   useEffect(() => {
     if (!editing || !id) return
     api
@@ -109,6 +139,18 @@ export default function PropertyForm() {
       .catch(() => setError("Could not load property"))
       .finally(() => setLoading(false))
   }, [editing, id])
+
+  // Auto-save draft to localStorage (new property only)
+  useEffect(() => {
+    if (editing) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveDraft(form, ring, marker)
+      setDraftSaved(true)
+      setTimeout(() => setDraftSaved(false), 1500)
+    }, 800)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  }, [form, ring, marker, editing])
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -180,6 +222,7 @@ export default function PropertyForm() {
         await api.put(`/properties/${id}`, payload)
       } else {
         await api.post("/properties", payload)
+        clearDraft()
       }
       navigate("/admin/properties")
     } catch (err) {
@@ -189,21 +232,52 @@ export default function PropertyForm() {
     }
   }
 
+  function discardDraft() {
+    clearDraft()
+    setForm(empty)
+    setRing([])
+    setMarker(null)
+  }
+
   if (loading) return <div className="h-96 animate-pulse rounded-2xl bg-white/60" />
 
   return (
     <form onSubmit={submit} className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-2xl font-bold text-navy">
-          {editing ? "Edit Property" : "Add Property"}
-        </h1>
-        <button
-          type="submit"
-          disabled={saving || uploading}
-          className="rounded-xl bg-navy px-6 py-2.5 font-semibold text-beige transition hover:bg-navy-light disabled:opacity-60"
-        >
-          {saving ? "Saving..." : "Save Property"}
-        </button>
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-navy">
+            {editing ? "Edit Property" : "Add Property"}
+          </h1>
+          {!editing && draft && (
+            <p className="mt-0.5 text-xs text-slate/50">
+              Draft restored —{" "}
+              <button
+                type="button"
+                onClick={discardDraft}
+                className="text-red-500 hover:underline"
+              >
+                discard
+              </button>
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {!editing && draftSaved && (
+            <span className="flex items-center gap-1 text-xs text-slate/50">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Draft saved
+            </span>
+          )}
+          <button
+            type="submit"
+            disabled={saving || uploading}
+            className="rounded-xl bg-navy px-6 py-2.5 font-semibold text-beige transition hover:bg-navy-light disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Property"}
+          </button>
+        </div>
       </div>
 
       {error && (
