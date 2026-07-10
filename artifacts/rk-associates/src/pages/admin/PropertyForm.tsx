@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import ReactMarkdown from "react-markdown"
 import { api, uploadFiles, type Property } from "../../lib/api"
 import { DrawMap } from "../../components/map/DrawMap"
 
@@ -31,6 +32,39 @@ const empty: FormState = {
 
 const inputClass =
   "w-full rounded-lg border border-slate/20 px-3 py-2 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/30"
+
+function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [tab, setTab] = useState<"write" | "preview">("write")
+  const tabCls = (t: "write" | "preview") =>
+    `px-4 py-1.5 text-xs font-semibold rounded-md transition ${
+      tab === t ? "bg-gold text-navy" : "text-slate/60 hover:text-navy hover:bg-slate/5"
+    }`
+  return (
+    <div className="sm:col-span-2">
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="text-xs font-medium text-slate/70">Description (Markdown)</label>
+        <div className="flex gap-1 rounded-lg border border-slate/15 bg-slate/5 p-0.5">
+          <button type="button" className={tabCls("write")} onClick={() => setTab("write")}>Write</button>
+          <button type="button" className={tabCls("preview")} onClick={() => setTab("preview")}>Preview</button>
+        </div>
+      </div>
+      {tab === "write" ? (
+        <textarea
+          rows={7}
+          className={inputClass + " font-mono text-xs leading-relaxed"}
+          placeholder={"## Overview\n\nDescribe the property...\n\n**Bold**, *italic*, - bullet points"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <div className="prose-rk min-h-28 rounded-lg border border-slate/20 bg-slate/3 px-3 py-2 text-sm text-slate/80">
+          {value ? <ReactMarkdown>{value}</ReactMarkdown> : <span className="text-slate/40 italic">Nothing to preview yet.</span>}
+        </div>
+      )}
+      <p className="mt-1 text-[11px] text-slate/40">Supports **bold**, *italic*, ## headings, - lists</p>
+    </div>
+  )
+}
 
 export default function PropertyForm() {
   const { id } = useParams<{ id: string }>()
@@ -263,15 +297,10 @@ export default function PropertyForm() {
                   onChange={(e) => set("areaSqft", e.target.value)}
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-slate/70">Description</label>
-                <textarea
-                  rows={5}
-                  className={inputClass}
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                />
-              </div>
+              <MarkdownEditor
+                value={form.description}
+                onChange={(v) => set("description", v)}
+              />
             </div>
           </div>
 

@@ -8,9 +8,6 @@ function buildQuery(filters: Filters): string {
   const params = new URLSearchParams()
   if (filters.q) params.set("q", filters.q)
   if (filters.status) params.set("status", filters.status)
-  if (filters.minPrice) params.set("minPrice", filters.minPrice)
-  if (filters.maxPrice) params.set("maxPrice", filters.maxPrice)
-  if (filters.minRooms) params.set("minRooms", filters.minRooms)
   if (filters.sort) params.set("sort", filters.sort)
   return params.toString()
 }

@@ -3,6 +3,21 @@ import { Property } from "../models/Property";
 import { asyncHandler } from "../middleware/error";
 import { uploadBuffer, cloudinaryConfigured } from "../config/cloudinary";
 
+const viewCache = new Map<string, number>();
+const VIEW_TTL = 24 * 60 * 60 * 1000;
+
+function hasViewed(propertyId: string, ip: string): boolean {
+  const key = `${propertyId}:${ip}`;
+  const last = viewCache.get(key);
+  if (last && Date.now() - last < VIEW_TTL) return true;
+  viewCache.set(key, Date.now());
+  if (viewCache.size > 50000) {
+    const cutoff = Date.now() - VIEW_TTL;
+    for (const [k, t] of viewCache) if (t < cutoff) viewCache.delete(k);
+  }
+  return false;
+}
+
 const SORTS = {
   newest: { createdAt: -1 },
   views: { views: -1 },
@@ -66,8 +81,11 @@ export const getOne = asyncHandler(async (req, res) => {
     return res.json({ property });
   }
 
-  property.views = (property.views || 0) + 1;
-  await property.save();
+  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown");
+  if (!hasViewed(String(property._id), ip)) {
+    property.views = (property.views || 0) + 1;
+    await property.save();
+  }
 
   let related = [];
   if (property.marker?.lng != null && property.marker?.lat != null) {

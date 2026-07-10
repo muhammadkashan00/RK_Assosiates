@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, Link } from "react-router-dom"
+import ReactMarkdown from "react-markdown"
 import { api, type Property } from "../lib/api"
 import { AreaMap } from "../components/map/AreaMap"
 import { WhatsAppInquiry } from "../components/property/WhatsAppInquiry"
@@ -127,9 +128,9 @@ export default function PropertyDetail() {
 
           <div className="mt-8">
             <h2 className="mb-3 font-serif text-xl font-semibold text-navy">Description</h2>
-            <p className="whitespace-pre-line leading-relaxed text-slate/80">
-              {property.description}
-            </p>
+            <div className="prose-rk leading-relaxed text-slate/80">
+              <ReactMarkdown>{property.description || ""}</ReactMarkdown>
+            </div>
           </div>
         </div>
 
