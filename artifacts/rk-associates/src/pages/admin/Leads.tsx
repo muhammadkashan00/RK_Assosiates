@@ -19,7 +19,7 @@ const statusConfig: Record<LeadStatus, { label: string; classes: string }> = {
   contacted: { label: "Contacted", classes: "bg-amber-100 text-amber-700" },
   initiated: { label: "Initiated", classes: "bg-purple-100 text-purple-700" },
   converted: { label: "Converted", classes: "bg-green-100 text-green-700" },
-  closed:    { label: "Closed",    classes: "bg-slate-100 text-slate-500" },
+  closed:    { label: "Closed",    classes: "bg-slate/10 text-slate/60" },
 }
 
 export default function Leads() {
@@ -55,13 +55,13 @@ export default function Leads() {
         {loading ? (
           <div className="space-y-3 p-5">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100" />
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-slate/10" />
             ))}
           </div>
         ) : leads.length === 0 ? (
-          <p className="p-10 text-center text-slate-400">No leads yet.</p>
+          <p className="p-10 text-center text-slate/50">No leads yet.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-slate/10">
             {leads.map((lead) => {
               const cfg = statusConfig[lead.status] ?? statusConfig["new"]
               const isBusy = busyId === lead._id
@@ -85,13 +85,13 @@ export default function Leads() {
                       >
                         {lead.phone}
                       </a>
-                      <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+                      <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate/70">
                         {lead.message}
                       </p>
                       {lead.property && (
                         <Link
                           to={`/property/${lead.property._id}`}
-                          className="mt-2 inline-block text-xs font-medium text-slate-400 hover:text-navy"
+                          className="mt-2 inline-block text-xs font-medium text-slate/50 hover:text-navy"
                         >
                           Re: {lead.property.title}
                         </Link>
@@ -99,7 +99,7 @@ export default function Leads() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      <time className="text-xs text-slate-400">
+                      <time className="text-xs text-slate/50">
                         {new Date(lead.createdAt).toLocaleString()}
                       </time>
 
@@ -107,7 +107,7 @@ export default function Leads() {
                         value={lead.status}
                         disabled={isBusy}
                         onChange={(e) => updateStatus(lead, e.target.value as LeadStatus)}
-                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-navy outline-none focus:border-gold disabled:opacity-50"
+                        className="rounded-lg border border-slate/20 bg-white px-2 py-1 text-xs text-navy outline-none focus:border-gold disabled:opacity-50"
                       >
                         <option value="new">New</option>
                         <option value="contacted">Contacted</option>

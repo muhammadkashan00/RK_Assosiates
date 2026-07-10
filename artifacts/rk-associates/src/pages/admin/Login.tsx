@@ -44,9 +44,7 @@ export default function Login() {
 
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold-dark font-serif text-xl font-bold text-navy shadow">
-            RK
-          </div>
+          <img src="/logo-icon.svg" alt="RK Associates" className="mx-auto mb-3 h-14 w-14 rounded-xl shadow" />
           <p className="font-serif text-2xl font-bold text-navy">RK Associates</p>
           <p className="mt-1 text-sm text-slate/60">Admin sign in</p>
         </div>

@@ -22,9 +22,7 @@ export function Navbar() {
     >
       <nav className="container-page flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-3" aria-label="RK Associates home">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-br from-gold to-gold-dark font-serif text-lg font-bold text-navy shadow-sm">
-            RK
-          </span>
+          <img src="/logo-icon.svg" alt="RK Associates" className="h-10 w-10 rounded-lg shadow-sm" />
           <span className="flex flex-col leading-none">
             <span className="font-serif text-lg font-semibold text-beige">RK Associates</span>
             <span className="text-[11px] uppercase tracking-[0.2em] text-gold">

@@ -1,0 +1,23 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="goldGradIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E0C878" />
+      <stop offset="50%" stop-color="#C9A74B" />
+      <stop offset="100%" stop-color="#A98C38" />
+    </linearGradient>
+    <linearGradient id="bgGradIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F3145" />
+      <stop offset="100%" stop-color="#152230" />
+    </linearGradient>
+  </defs>
+
+  <rect width="120" height="120" rx="24" fill="url(#bgGradIcon)" />
+
+  <g transform="translate(60,64)">
+    <path d="M -22 4 L 0 -16 L 22 4" fill="none" stroke="url(#goldGradIcon)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M -16 1 L -16 18 L 16 18 L 16 1" fill="none" stroke="url(#goldGradIcon)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
+    <line x1="0" y1="-16" x2="0" y2="-23" stroke="url(#goldGradIcon)" stroke-width="3.4" stroke-linecap="round" />
+    <circle cx="0" cy="-24.5" r="2.6" fill="url(#goldGradIcon)" />
+    <text x="0" y="12" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-weight="700" font-size="15" fill="url(#goldGradIcon)">RK</text>
+  </g>
+</svg>

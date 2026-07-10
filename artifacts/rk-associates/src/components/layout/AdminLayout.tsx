@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom"
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom"
 import { useAuth } from "../../hooks/useAuth"
 
 const links = [
@@ -63,8 +63,11 @@ export function AdminLayout() {
       {/* Mobile top bar */}
       <div className="lg:hidden border-b border-navy/10 bg-navy px-4 py-3">
         <div className="flex items-center justify-between">
-          <span className="font-serif text-lg font-bold text-gold">RK Admin</span>
-          <span className="truncate max-w-[140px] text-xs text-beige/60">{user?.email}</span>
+          <Link to="/" className="flex items-center gap-2" aria-label="Back to site">
+            <img src="/logo-icon.svg" alt="RK Associates" className="h-8 w-8 rounded-lg" />
+            <span className="font-serif text-base font-bold text-gold">RK Admin</span>
+          </Link>
+          <span className="truncate max-w-[110px] text-xs text-beige/60">{user?.email}</span>
         </div>
         <nav className="mt-3 flex gap-1 overflow-x-auto pb-1 scrollbar-none">
           {links.map((l) => (
@@ -107,8 +110,11 @@ export function AdminLayout() {
           <div className="sticky top-8 rounded-2xl bg-navy overflow-hidden shadow-xl">
             {/* Brand */}
             <div className="px-5 pt-6 pb-4 border-b border-white/10">
-              <p className="font-serif text-xl font-bold text-gold">RK Admin</p>
-              <p className="mt-0.5 truncate text-xs text-beige/50">{user?.email}</p>
+              <Link to="/" className="flex items-center gap-2.5" aria-label="Back to site">
+                <img src="/logo-icon.svg" alt="RK Associates" className="h-9 w-9 rounded-lg" />
+                <span className="font-serif text-lg font-bold text-gold">RK Admin</span>
+              </Link>
+              <p className="mt-2 truncate text-xs text-beige/50">{user?.email}</p>
             </div>
 
             {/* Nav links */}
