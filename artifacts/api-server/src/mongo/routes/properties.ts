@@ -11,7 +11,7 @@ import {
   deleteProperty,
 } from "../controllers/propertyController";
 import { requireAuth, optionalAuth } from "../middleware/auth";
-import { upload } from "../middleware/upload";
+import { upload, validateFileSizes } from "../middleware/upload";
 
 const router = Router();
 
@@ -25,6 +25,7 @@ router.post(
     { name: "images", maxCount: 20 },
     { name: "video", maxCount: 1 },
   ]),
+  validateFileSizes,   // enforce per-type size limits before hitting Cloudinary
   uploadMedia,
 );
 
