@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import ReactMarkdown from "react-markdown"
 import { api, uploadFiles, type Property } from "../../lib/api"
+import { formatPrice } from "../../lib/format"
 import { DrawMap } from "../../components/map/DrawMap"
 
 // ─── Upload limits (must match backend upload.ts) ────────────────────────────
 const IMAGE_MAX_MB = 20
 const VIDEO_MAX_MB = 100
-const IMAGE_COMPRESS_THRESHOLD_MB = 2   // auto-compressed above this
-const VIDEO_COMPRESS_THRESHOLD_MB = 10  // auto-compressed above this
+const IMAGE_COMPRESS_THRESHOLD_MB = 2
+const VIDEO_COMPRESS_THRESHOLD_MB = 10
 
 function formatMB(bytes: number) {
   return (bytes / 1024 / 1024).toFixed(1) + " MB"
@@ -32,35 +33,32 @@ function validateVideoFile(file: File): string | null {
   return null
 }
 
+// Warn if address looks like it contains a specific house / plot number
+const HOUSE_NUMBER_RE = /\b(house|plot|h)\s*[#\-]?\s*\d+|\bh#\s*\d+/i
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface FormState {
   title: string
-  buildingName: string
   address: string
   description: string
   price: string
-  rooms: string
-  baths: string
-  areaSqft: string
+  areaText: string
   status: Property["status"]
   published: boolean
 }
 
 const empty: FormState = {
   title: "",
-  buildingName: "",
   address: "",
   description: "",
   price: "",
-  rooms: "",
-  baths: "",
-  areaSqft: "",
+  areaText: "",
   status: "available",
   published: true,
 }
 
-const DRAFT_KEY = "rk_property_draft"
+const DRAFT_KEY = "rk_property_draft_v2"
 
 function loadDraft(): { form: FormState; ring: number[][]; marker: { lat: number; lng: number } | null } | null {
   try {
@@ -139,7 +137,6 @@ export default function PropertyForm() {
   const [uploadError, setUploadError] = useState("")
   const [draftSaved, setDraftSaved] = useState(false)
 
-  // Track pending upload sizes to show compression notices
   const [pendingImageBytes, setPendingImageBytes] = useState<number>(0)
   const [pendingVideoBytes, setPendingVideoBytes] = useState<number>(0)
 
@@ -155,13 +152,10 @@ export default function PropertyForm() {
         const p = res.property
         setForm({
           title: p.title,
-          buildingName: p.buildingName ?? "",
           address: p.address ?? "",
           description: p.description ?? "",
           price: String(p.price ?? ""),
-          rooms: String(p.rooms ?? ""),
-          baths: String(p.baths ?? ""),
-          areaSqft: String(p.areaSqft ?? ""),
+          areaText: p.areaText ?? "",
           status: p.status,
           published: p.published,
         })
@@ -192,22 +186,17 @@ export default function PropertyForm() {
   async function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
     const files = Array.from(e.target.files)
-
-    // Client-side size validation
     const validationError = validateImageFiles(files)
     if (validationError) {
       setUploadError(validationError)
       if (imgInput.current) imgInput.current.value = ""
       return
     }
-
     setUploadError("")
     setUploading(true)
     setError("")
-
     const totalBytes = files.reduce((sum, f) => sum + f.size, 0)
     setPendingImageBytes(totalBytes)
-
     try {
       const urls = await uploadFiles("/properties/upload", files, "images")
       setImages((prev) => [...prev, ...urls])
@@ -223,20 +212,16 @@ export default function PropertyForm() {
   async function handleVideo(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
     const file = e.target.files[0]
-
-    // Client-side size validation
     const validationError = validateVideoFile(file)
     if (validationError) {
       setUploadError(validationError)
       if (vidInput.current) vidInput.current.value = ""
       return
     }
-
     setUploadError("")
     setUploading(true)
     setError("")
     setPendingVideoBytes(file.size)
-
     try {
       const urls = await uploadFiles("/properties/upload", [file], "video")
       setVideo(urls[0] ?? "")
@@ -269,12 +254,17 @@ export default function PropertyForm() {
     ) {
       closed.push(closed[0])
     }
+    // Only send fields managed by this form. Omit rooms/baths/areaSqft/buildingName
+    // so existing values on the backend are preserved on update, and schema
+    // defaults (0, "") apply on create.
     const payload = {
-      ...form,
+      title: form.title,
+      address: form.address,
+      description: form.description,
       price: Number(form.price),
-      rooms: Number(form.rooms),
-      baths: Number(form.baths),
-      areaSqft: Number(form.areaSqft),
+      areaText: form.areaText,
+      status: form.status,
+      published: form.published,
       images,
       video,
       marker: centroid,
@@ -304,8 +294,11 @@ export default function PropertyForm() {
 
   if (loading) return <div className="h-96 animate-pulse rounded-2xl bg-white/60" />
 
+  const priceNum = Number(form.price)
+  const pricePreview = Number.isFinite(priceNum) && priceNum > 0 ? formatPrice(priceNum) : null
   const imageWillCompress = pendingImageBytes > IMAGE_COMPRESS_THRESHOLD_MB * 1024 * 1024
   const videoWillCompress = pendingVideoBytes > VIDEO_COMPRESS_THRESHOLD_MB * 1024 * 1024
+  const addressHasHouseNumber = HOUSE_NUMBER_RE.test(form.address)
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -346,7 +339,6 @@ export default function PropertyForm() {
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
       )}
 
-      {/* Upload validation error — separate from general form error */}
       {uploadError && (
         <div className="flex items-start gap-2 rounded-lg bg-red-50 px-4 py-3 ring-1 ring-red-200">
           <svg className="mt-0.5 shrink-0 text-red-500" width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -375,46 +367,75 @@ export default function PropertyForm() {
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
             <h2 className="mb-4 font-serif text-lg font-semibold text-navy">Details</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+              {/* Title */}
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-slate/70">Title *</label>
+                <label className="mb-1 block text-xs font-medium text-slate/70">
+                  Society / Area Name *
+                </label>
                 <input
                   required
                   className={inputClass}
+                  placeholder="Society or area name e.g. DHA Phase 5"
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
                 />
               </div>
-              <div>
+
+              {/* Address */}
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-slate/70">
-                  Building / Project name
+                  Street &amp; Block
                 </label>
                 <input
                   className={inputClass}
-                  value={form.buildingName}
-                  onChange={(e) => set("buildingName", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate/70">Address</label>
-                <input
-                  className={inputClass}
+                  placeholder="Street/block only — no house number"
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
                 />
+                <p className="mt-1 text-[11px] text-slate/40">
+                  Do not include specific house number for privacy
+                </p>
+                {addressHasHouseNumber && (
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 9v4M12 17h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" strokeWidth="1.7" />
+                    </svg>
+                    Looks like a specific house or plot number — consider removing it
+                  </p>
+                )}
               </div>
+
+              {/* Price */}
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate/70">
-                  Price (PKR) *
-                </label>
+                <label className="mb-1 block text-xs font-medium text-slate/70">Price (PKR) *</label>
                 <input
                   required
                   type="number"
                   min="0"
                   className={inputClass}
+                  placeholder="e.g. 2500000"
                   value={form.price}
                   onChange={(e) => set("price", e.target.value)}
                 />
+                {pricePreview && (
+                  <p className="mt-1 text-[11px] text-gold-dark font-medium">≈ {pricePreview}</p>
+                )}
               </div>
+
+              {/* Area (free text) */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate/70">Area</label>
+                <input
+                  className={inputClass}
+                  placeholder="e.g. 5 Marla, 1 Kanal, 10 sqft"
+                  value={form.areaText}
+                  onChange={(e) => set("areaText", e.target.value)}
+                />
+              </div>
+
+              {/* Status */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate/70">Status</label>
                 <select
@@ -427,36 +448,22 @@ export default function PropertyForm() {
                   <option value="sold">Sold</option>
                 </select>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate/70">Rooms</label>
+
+              {/* Published toggle */}
+              <div className="flex items-center gap-2 pt-5">
                 <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={form.rooms}
-                  onChange={(e) => set("rooms", e.target.value)}
+                  id="published"
+                  type="checkbox"
+                  className="h-4 w-4 accent-gold"
+                  checked={form.published}
+                  onChange={(e) => set("published", e.target.checked)}
                 />
+                <label htmlFor="published" className="text-xs font-medium text-slate/70 select-none">
+                  Published (visible to buyers)
+                </label>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate/70">Baths</label>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={form.baths}
-                  onChange={(e) => set("baths", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate/70">Area (sqft)</label>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={form.areaSqft}
-                  onChange={(e) => set("areaSqft", e.target.value)}
-                />
-              </div>
+
+              {/* Description */}
               <MarkdownEditor
                 value={form.description}
                 onChange={(v) => set("description", v)}
@@ -464,6 +471,7 @@ export default function PropertyForm() {
             </div>
           </div>
 
+          {/* Map */}
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
             <h2 className="mb-1 font-serif text-lg font-semibold text-navy">Coverage Area *</h2>
             <p className="mb-3 text-sm text-slate/60">
@@ -474,7 +482,7 @@ export default function PropertyForm() {
         </div>
 
         <div className="space-y-4">
-          {/* ── Images ── */}
+          {/* Images */}
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="font-serif text-lg font-semibold text-navy">Images</h2>
@@ -499,45 +507,29 @@ export default function PropertyForm() {
               {uploading && pendingImageBytes > 0 ? "Uploading…" : "+ Upload images"}
             </button>
 
-            {/* Compression notice while uploading */}
-            {uploading && pendingImageBytes > 0 && (
-              <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2">
-                <svg className="animate-spin text-gold" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" strokeDasharray="56" strokeDashoffset="14" />
-                </svg>
-                <span className="text-xs text-navy/80">
-                  Uploading {formatMB(pendingImageBytes)}
-                  {imageWillCompress && " — auto-compressing for web"}
-                  …
-                </span>
-              </div>
+            {imageWillCompress && (
+              <p className="mt-2 text-[11px] text-amber-600">
+                Large images will be auto-compressed for faster loading.
+              </p>
             )}
-
-            {/* Hint about auto-compression */}
-            <p className="mt-1.5 text-[11px] text-slate/40">
-              Images over {IMAGE_COMPRESS_THRESHOLD_MB} MB are automatically compressed and optimised for web.
-            </p>
 
             {images.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {images.map((url, i) => (
-                  <div
-                    key={url}
-                    className="group relative aspect-square overflow-hidden rounded-lg bg-slate/10"
-                  >
+                  <div key={i} className="group relative aspect-square overflow-hidden rounded-lg bg-slate/10">
                     <img
                       src={url}
-                      alt=""
+                      alt={`img ${i + 1}`}
                       className="h-full w-full object-cover"
                       crossOrigin="anonymous"
                     />
                     <button
                       type="button"
-                      onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="absolute right-1 top-1 rounded-full bg-navy/80 p-1 text-beige opacity-0 transition group-hover:opacity-100"
-                      aria-label="Remove image"
+                      onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
+                      aria-label="Remove"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
                         <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" />
                       </svg>
                     </button>
@@ -547,7 +539,7 @@ export default function PropertyForm() {
             )}
           </div>
 
-          {/* ── Video ── */}
+          {/* Video */}
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="font-serif text-lg font-semibold text-navy">Video Tour</h2>
@@ -564,60 +556,35 @@ export default function PropertyForm() {
 
             {video ? (
               <div className="space-y-2">
-                <video src={video} controls className="w-full rounded-lg" />
+                <video
+                  src={video}
+                  controls
+                  className="w-full rounded-lg ring-1 ring-navy/10"
+                />
                 <button
                   type="button"
                   onClick={() => setVideo("")}
-                  className="text-sm font-medium text-red-600 hover:underline"
+                  className="text-xs text-red-500 hover:underline"
                 >
                   Remove video
                 </button>
               </div>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => { setUploadError(""); vidInput.current?.click() }}
-                  disabled={uploading}
-                  className="w-full rounded-lg border border-dashed border-slate/30 py-3 text-sm font-medium text-slate transition hover:bg-slate/5 disabled:opacity-60"
-                >
-                  {uploading && pendingVideoBytes > 0 ? "Uploading…" : "+ Upload video"}
-                </button>
-
-                {/* Compression notice while uploading */}
-                {uploading && pendingVideoBytes > 0 && (
-                  <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2">
-                    <svg className="animate-spin text-gold" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" strokeDasharray="56" strokeDashoffset="14" />
-                    </svg>
-                    <span className="text-xs text-navy/80">
-                      Uploading {formatMB(pendingVideoBytes)}
-                      {videoWillCompress && " — auto-compressing video"}
-                      …
-                    </span>
-                  </div>
-                )}
-
-                <p className="mt-1.5 text-[11px] text-slate/40">
-                  Videos over {VIDEO_COMPRESS_THRESHOLD_MB} MB are automatically compressed. Accepts MP4, MOV, WebM.
-                </p>
-              </>
+              <button
+                type="button"
+                onClick={() => { setUploadError(""); vidInput.current?.click() }}
+                disabled={uploading}
+                className="w-full rounded-lg border border-dashed border-slate/30 py-3 text-sm font-medium text-slate transition hover:bg-slate/5 disabled:opacity-60"
+              >
+                {uploading && pendingVideoBytes > 0 ? "Uploading…" : "+ Upload video"}
+              </button>
             )}
-          </div>
 
-          {/* ── Publish ── */}
-          <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={form.published}
-                onChange={(e) => set("published", e.target.checked)}
-                className="h-4 w-4 rounded border-slate/30 text-navy focus:ring-gold"
-              />
-              <span className="text-sm font-medium text-navy">
-                Publish immediately (visible on public site)
-              </span>
-            </label>
+            {videoWillCompress && (
+              <p className="mt-2 text-[11px] text-amber-600">
+                Large videos will be auto-compressed for faster streaming.
+              </p>
+            )}
           </div>
         </div>
       </div>
