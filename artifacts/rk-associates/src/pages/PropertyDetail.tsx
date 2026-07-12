@@ -8,6 +8,7 @@ import { PropertyGrid } from "../components/property/PropertyGrid"
 import { FavoriteButton } from "../components/property/FavoriteButton"
 import { ShareButton } from "../components/property/ShareButton"
 import { formatPrice, formatNumber, statusLabels, statusStyles } from "../lib/format"
+import { trackPropertyView } from "../hooks/useVisitTracker"
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +28,8 @@ export default function PropertyDetail() {
         setProperty(res.property)
         setRelated(res.related ?? [])
         setActiveImage(0)
+        // Fire-and-forget: fingerprint-based view tracking (deduplicated server-side per device/24h)
+        trackPropertyView(id)
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
