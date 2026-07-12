@@ -92,7 +92,7 @@ export function PropertyCard({ property, index = 0 }: { property: Property; inde
                 label={`${formatNumber(property.baths)} ba`}
               />
             )}
-            {property.areaSqft > 0 && (
+            {(property.areaText || property.areaSqft > 0) && (
               <Spec
                 icon={
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -107,7 +107,7 @@ export function PropertyCard({ property, index = 0 }: { property: Property; inde
                     />
                   </svg>
                 }
-                label={`${formatNumber(property.areaSqft)} ft²`}
+                label={property.areaText || `${formatNumber(property.areaSqft)} ft²`}
               />
             )}
           </div>
