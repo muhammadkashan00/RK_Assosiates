@@ -50,6 +50,7 @@ function CenterControl({ bounds }: { bounds: LatLngBoundsExpression | null }) {
 }
 
 export function AreaMap({ ring, center, title, className }: AreaMapProps) {
+  // GeoJSON stores [lng, lat]; Leaflet needs [lat, lng]
   const positions: LatLngExpression[] = (ring ?? []).map(([lng, lat]) => [lat, lng])
 
   let mapCenter: LatLngExpression = center ? [center.lat, center.lng] : [24.8607, 67.0011]
@@ -76,10 +77,21 @@ export function AreaMap({ ring, center, title, className }: AreaMapProps) {
         ]
       : null
 
+  // Key changes whenever ring or center changes, forcing MapContainer to remount
+  // and correctly display the updated polygon. This fixes the stale-render bug
+  // where the polygon only appeared after multiple saves.
+  const mapKey = JSON.stringify(ring ?? []) + JSON.stringify(center ?? {})
+
   return (
     <div className={className ?? "h-80 w-full overflow-hidden rounded-2xl ring-1 ring-navy/10"}>
       <div className="relative h-full w-full">
-        <MapContainer center={mapCenter} zoom={15} scrollWheelZoom={false} className="h-full w-full">
+        <MapContainer
+          key={mapKey}
+          center={mapCenter}
+          zoom={15}
+          scrollWheelZoom={false}
+          className="h-full w-full"
+        >
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
