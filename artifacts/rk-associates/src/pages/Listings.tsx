@@ -1,11 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams, Link } from "react-router-dom"
 import { api, type Property } from "../lib/api"
 import { PropertyGrid } from "../components/property/PropertyGrid"
 import { FilterBar, emptyFilters, type Filters } from "../components/property/FilterBar"
 import { Pagination } from "../components/property/Pagination"
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 12
+
+type GeoErrorType = "denied" | "unavailable" | "timeout" | null
+
+const geoErrorMessages: Record<NonNullable<GeoErrorType>, { title: string; body: string }> = {
+  denied: {
+    title: "Location access denied",
+    body: "Allow location in your browser settings to use 'Near You', or browse all properties below.",
+  },
+  unavailable: {
+    title: "Location unavailable",
+    body: "Your device couldn't determine your position. Showing all properties instead.",
+  },
+  timeout: {
+    title: "Location timed out",
+    body: "It took too long to get your location. Showing all properties instead.",
+  },
+}
 
 function buildQuery(filters: Filters): string {
   const params = new URLSearchParams()
@@ -25,8 +42,8 @@ export default function Listings() {
   const [nearMode, setNearMode] = useState(false)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [page, setPage] = useState(1)
+  const [geoError, setGeoError] = useState<GeoErrorType>(null)
 
-  // Use state (not ref) so the load effect re-fires once GPS resolves.
   // Starts false when near=1 so we don't fire an empty fetch before coords arrive.
   const [geoReady, setGeoReady] = useState(!near)
 
@@ -34,9 +51,11 @@ export default function Listings() {
     if (!near) {
       setGeoReady(true)
       setNearMode(false)
+      setGeoError(null)
       return
     }
     if (!("geolocation" in navigator)) {
+      setGeoError("unavailable")
       setGeoReady(true)
       return
     }
@@ -44,9 +63,13 @@ export default function Listings() {
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setNearMode(true)
+        setGeoError(null)
         setGeoReady(true)
       },
-      () => {
+      (err) => {
+        if (err.code === 1) setGeoError("denied")
+        else if (err.code === 2) setGeoError("unavailable")
+        else setGeoError("timeout")
         setNearMode(false)
         setGeoReady(true)
       },
@@ -106,7 +129,24 @@ export default function Listings() {
         </p>
       </div>
 
-      {nearMode && coords ? (
+      {/* Geo error banner */}
+      {geoError && geoErrorMessages[geoError] && (
+        <div className="mb-6 flex flex-col gap-1 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-amber-800">{geoErrorMessages[geoError].title}</p>
+            <p className="mt-0.5 text-xs text-amber-700">{geoErrorMessages[geoError].body}</p>
+          </div>
+          <Link
+            to="/listings"
+            className="mt-2 shrink-0 text-sm font-semibold text-gold-dark hover:underline sm:mt-0"
+          >
+            Browse all →
+          </Link>
+        </div>
+      )}
+
+      {/* Near You active banner */}
+      {nearMode && coords && !geoError && (
         <div className="mb-6 flex items-center justify-between rounded-xl bg-gold/10 px-4 py-3 ring-1 ring-gold/30">
           <span className="text-sm text-navy">Showing results near your location.</span>
           <button
@@ -116,27 +156,26 @@ export default function Listings() {
             Show all instead
           </button>
         </div>
-      ) : (
-        <div className="mb-6">
-          <FilterBar value={filters} onChange={setFilters} onReset={() => setFilters(emptyFilters)} />
-        </div>
       )}
 
-      {!geoReady ? (
-        <div className="flex flex-col items-center gap-3 py-20 text-slate/60">
-          <svg className="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-          </svg>
-          <span className="text-sm">Getting your location…</span>
+      {!nearMode && !geoError && (
+        <FilterBar filters={filters} onChange={(f) => { setFilters(f); setPage(1) }} />
+      )}
+
+      <PropertyGrid
+        properties={pagedProperties}
+        loading={loading}
+        emptyMessage={
+          nearMode
+            ? "No properties found near your location."
+            : "No properties match your search yet."
+        }
+      />
+
+      {!loading && totalPages > 1 && (
+        <div className="mt-8 flex justify-center">
+          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
         </div>
-      ) : (
-        <>
-          <PropertyGrid properties={pagedProperties} loading={loading} />
-          {!loading && (
-            <Pagination page={page} totalPages={totalPages} onChange={goToPage} />
-          )}
-        </>
       )}
     </div>
   )
