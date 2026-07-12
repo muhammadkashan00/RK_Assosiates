@@ -96,6 +96,8 @@ export interface Property {
   rooms: number
   baths: number
   areaSqft: number
+  /** Human-readable area set by admin, e.g. "5 Marla", "1 Kanal" */
+  areaText?: string
   status: "available" | "reserved" | "sold"
   published: boolean
   images: string[]
