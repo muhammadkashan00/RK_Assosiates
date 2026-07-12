@@ -60,6 +60,13 @@ export default function PropertyDetail() {
 
   const cover = property.images[activeImage] ?? property.images[0]
 
+  // Build the specs to show — only non-empty/non-zero values
+  const hasRooms = property.rooms > 0
+  const hasBaths = property.baths > 0
+  const hasArea = Boolean(property.areaText) || property.areaSqft > 0
+  const areaLabel = property.areaText || `${formatNumber(property.areaSqft)} ft²`
+  const specsCount = [hasRooms, hasBaths, hasArea].filter(Boolean).length
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <nav className="mb-4 text-sm text-slate/60">
@@ -169,26 +176,32 @@ export default function PropertyDetail() {
               {formatPrice(property.price)}
             </p>
 
-            <dl className="mt-6 grid grid-cols-3 gap-3 border-y border-slate/10 py-4 text-center">
-              <div>
-                <dt className="text-xs font-medium text-black dark:text-white">Rooms</dt>
-                <dd className="font-serif text-lg font-semibold text-navy">
-                  {formatNumber(property.rooms)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-black dark:text-white">Baths</dt>
-                <dd className="font-serif text-lg font-semibold text-navy">
-                  {formatNumber(property.baths)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-black dark:text-white">Area</dt>
-                <dd className="font-serif text-lg font-semibold text-navy">
-                  {formatNumber(property.areaSqft)}
-                </dd>
-              </div>
-            </dl>
+            {specsCount > 0 && (
+              <dl className={`mt-6 grid gap-3 border-y border-slate/10 py-4 text-center grid-cols-${specsCount}`}>
+                {hasRooms && (
+                  <div>
+                    <dt className="text-xs font-medium text-black dark:text-white">Rooms</dt>
+                    <dd className="font-serif text-lg font-semibold text-navy">
+                      {formatNumber(property.rooms)}
+                    </dd>
+                  </div>
+                )}
+                {hasBaths && (
+                  <div>
+                    <dt className="text-xs font-medium text-black dark:text-white">Baths</dt>
+                    <dd className="font-serif text-lg font-semibold text-navy">
+                      {formatNumber(property.baths)}
+                    </dd>
+                  </div>
+                )}
+                {hasArea && (
+                  <div>
+                    <dt className="text-xs font-medium text-black dark:text-white">Area</dt>
+                    <dd className="font-serif text-lg font-semibold text-navy">{areaLabel}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
 
             <div className="mt-6">
               <WhatsAppInquiry propertyId={property._id} propertyTitle={property.title} />
