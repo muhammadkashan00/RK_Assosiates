@@ -4,6 +4,36 @@ import ReactMarkdown from "react-markdown"
 import { api, uploadFiles, type Property } from "../../lib/api"
 import { DrawMap } from "../../components/map/DrawMap"
 
+// ─── Upload limits (must match backend upload.ts) ────────────────────────────
+const IMAGE_MAX_MB = 20
+const VIDEO_MAX_MB = 100
+const IMAGE_COMPRESS_THRESHOLD_MB = 2   // auto-compressed above this
+const VIDEO_COMPRESS_THRESHOLD_MB = 10  // auto-compressed above this
+
+function formatMB(bytes: number) {
+  return (bytes / 1024 / 1024).toFixed(1) + " MB"
+}
+
+function validateImageFiles(files: File[]): string | null {
+  for (const f of files) {
+    const mb = f.size / 1024 / 1024
+    if (mb > IMAGE_MAX_MB) {
+      return `"${f.name}" is ${mb.toFixed(1)} MB — images must be under ${IMAGE_MAX_MB} MB. Please resize it and try again.`
+    }
+  }
+  return null
+}
+
+function validateVideoFile(file: File): string | null {
+  const mb = file.size / 1024 / 1024
+  if (mb > VIDEO_MAX_MB) {
+    return `"${file.name}" is ${mb.toFixed(1)} MB — videos must be under ${VIDEO_MAX_MB} MB.`
+  }
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface FormState {
   title: string
   buildingName: string
@@ -95,7 +125,6 @@ export default function PropertyForm() {
   const editing = Boolean(id)
   const navigate = useNavigate()
 
-  // For new forms, restore draft from localStorage
   const draft = !editing ? loadDraft() : null
 
   const [form, setForm] = useState<FormState>(draft?.form ?? empty)
@@ -107,12 +136,17 @@ export default function PropertyForm() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState("")
+  const [uploadError, setUploadError] = useState("")
   const [draftSaved, setDraftSaved] = useState(false)
+
+  // Track pending upload sizes to show compression notices
+  const [pendingImageBytes, setPendingImageBytes] = useState<number>(0)
+  const [pendingVideoBytes, setPendingVideoBytes] = useState<number>(0)
+
   const imgInput = useRef<HTMLInputElement>(null)
   const vidInput = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load existing property when editing
   useEffect(() => {
     if (!editing || !id) return
     api
@@ -140,7 +174,6 @@ export default function PropertyForm() {
       .finally(() => setLoading(false))
   }, [editing, id])
 
-  // Auto-save draft to localStorage (new property only)
   useEffect(() => {
     if (editing) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
@@ -158,30 +191,60 @@ export default function PropertyForm() {
 
   async function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
+    const files = Array.from(e.target.files)
+
+    // Client-side size validation
+    const validationError = validateImageFiles(files)
+    if (validationError) {
+      setUploadError(validationError)
+      if (imgInput.current) imgInput.current.value = ""
+      return
+    }
+
+    setUploadError("")
     setUploading(true)
     setError("")
+
+    const totalBytes = files.reduce((sum, f) => sum + f.size, 0)
+    setPendingImageBytes(totalBytes)
+
     try {
-      const urls = await uploadFiles("/properties/upload", Array.from(e.target.files), "images")
+      const urls = await uploadFiles("/properties/upload", files, "images")
       setImages((prev) => [...prev, ...urls])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed")
     } finally {
       setUploading(false)
+      setPendingImageBytes(0)
       if (imgInput.current) imgInput.current.value = ""
     }
   }
 
   async function handleVideo(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
+    const file = e.target.files[0]
+
+    // Client-side size validation
+    const validationError = validateVideoFile(file)
+    if (validationError) {
+      setUploadError(validationError)
+      if (vidInput.current) vidInput.current.value = ""
+      return
+    }
+
+    setUploadError("")
     setUploading(true)
     setError("")
+    setPendingVideoBytes(file.size)
+
     try {
-      const urls = await uploadFiles("/properties/upload", Array.from(e.target.files), "video")
+      const urls = await uploadFiles("/properties/upload", [file], "video")
       setVideo(urls[0] ?? "")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed")
     } finally {
       setUploading(false)
+      setPendingVideoBytes(0)
       if (vidInput.current) vidInput.current.value = ""
     }
   }
@@ -241,6 +304,9 @@ export default function PropertyForm() {
 
   if (loading) return <div className="h-96 animate-pulse rounded-2xl bg-white/60" />
 
+  const imageWillCompress = pendingImageBytes > IMAGE_COMPRESS_THRESHOLD_MB * 1024 * 1024
+  const videoWillCompress = pendingVideoBytes > VIDEO_COMPRESS_THRESHOLD_MB * 1024 * 1024
+
   return (
     <form onSubmit={submit} className="space-y-6">
       <div className="flex items-center justify-between">
@@ -251,11 +317,7 @@ export default function PropertyForm() {
           {!editing && draft && (
             <p className="mt-0.5 text-xs text-slate/50">
               Draft restored —{" "}
-              <button
-                type="button"
-                onClick={discardDraft}
-                className="text-red-500 hover:underline"
-              >
+              <button type="button" onClick={discardDraft} className="text-red-500 hover:underline">
                 discard
               </button>
             </p>
@@ -282,6 +344,30 @@ export default function PropertyForm() {
 
       {error && (
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
+      )}
+
+      {/* Upload validation error — separate from general form error */}
+      {uploadError && (
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 px-4 py-3 ring-1 ring-red-200">
+          <svg className="mt-0.5 shrink-0 text-red-500" width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-red-700">File too large</p>
+            <p className="text-xs text-red-600">{uploadError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUploadError("")}
+            className="ml-auto shrink-0 text-red-400 hover:text-red-600"
+            aria-label="Dismiss"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </button>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -381,16 +467,20 @@ export default function PropertyForm() {
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
             <h2 className="mb-1 font-serif text-lg font-semibold text-navy">Coverage Area *</h2>
             <p className="mb-3 text-sm text-slate/60">
-              Click the map to outline the property boundary. The marker is auto-placed at the
-              center.
+              Click the map to outline the property boundary. The marker is auto-placed at the center.
             </p>
             <DrawMap points={ring} onChange={setRing} center={marker ?? undefined} />
           </div>
         </div>
 
         <div className="space-y-4">
+          {/* ── Images ── */}
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
-            <h2 className="mb-3 font-serif text-lg font-semibold text-navy">Images</h2>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="font-serif text-lg font-semibold text-navy">Images</h2>
+              <span className="text-[11px] text-slate/50">Max {IMAGE_MAX_MB} MB each</span>
+            </div>
+
             <input
               ref={imgInput}
               type="file"
@@ -399,14 +489,35 @@ export default function PropertyForm() {
               onChange={handleImages}
               className="hidden"
             />
+
             <button
               type="button"
-              onClick={() => imgInput.current?.click()}
+              onClick={() => { setUploadError(""); imgInput.current?.click() }}
               disabled={uploading}
               className="w-full rounded-lg border border-dashed border-slate/30 py-3 text-sm font-medium text-slate transition hover:bg-slate/5 disabled:opacity-60"
             >
-              {uploading ? "Uploading..." : "+ Upload images"}
+              {uploading && pendingImageBytes > 0 ? "Uploading…" : "+ Upload images"}
             </button>
+
+            {/* Compression notice while uploading */}
+            {uploading && pendingImageBytes > 0 && (
+              <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2">
+                <svg className="animate-spin text-gold" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" strokeDasharray="56" strokeDashoffset="14" />
+                </svg>
+                <span className="text-xs text-navy/80">
+                  Uploading {formatMB(pendingImageBytes)}
+                  {imageWillCompress && " — auto-compressing for web"}
+                  …
+                </span>
+              </div>
+            )}
+
+            {/* Hint about auto-compression */}
+            <p className="mt-1.5 text-[11px] text-slate/40">
+              Images over {IMAGE_COMPRESS_THRESHOLD_MB} MB are automatically compressed and optimised for web.
+            </p>
+
             {images.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {images.map((url, i) => (
@@ -427,11 +538,7 @@ export default function PropertyForm() {
                       aria-label="Remove image"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M6 6l12 12M18 6L6 18"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        />
+                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" />
                       </svg>
                     </button>
                   </div>
@@ -440,8 +547,13 @@ export default function PropertyForm() {
             )}
           </div>
 
+          {/* ── Video ── */}
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
-            <h2 className="mb-3 font-serif text-lg font-semibold text-navy">Video Tour</h2>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="font-serif text-lg font-semibold text-navy">Video Tour</h2>
+              <span className="text-[11px] text-slate/50">Max {VIDEO_MAX_MB} MB</span>
+            </div>
+
             <input
               ref={vidInput}
               type="file"
@@ -449,6 +561,7 @@ export default function PropertyForm() {
               onChange={handleVideo}
               className="hidden"
             />
+
             {video ? (
               <div className="space-y-2">
                 <video src={video} controls className="w-full rounded-lg" />
@@ -461,17 +574,38 @@ export default function PropertyForm() {
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => vidInput.current?.click()}
-                disabled={uploading}
-                className="w-full rounded-lg border border-dashed border-slate/30 py-3 text-sm font-medium text-slate transition hover:bg-slate/5 disabled:opacity-60"
-              >
-                {uploading ? "Uploading..." : "+ Upload video"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setUploadError(""); vidInput.current?.click() }}
+                  disabled={uploading}
+                  className="w-full rounded-lg border border-dashed border-slate/30 py-3 text-sm font-medium text-slate transition hover:bg-slate/5 disabled:opacity-60"
+                >
+                  {uploading && pendingVideoBytes > 0 ? "Uploading…" : "+ Upload video"}
+                </button>
+
+                {/* Compression notice while uploading */}
+                {uploading && pendingVideoBytes > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2">
+                    <svg className="animate-spin text-gold" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" strokeDasharray="56" strokeDashoffset="14" />
+                    </svg>
+                    <span className="text-xs text-navy/80">
+                      Uploading {formatMB(pendingVideoBytes)}
+                      {videoWillCompress && " — auto-compressing video"}
+                      …
+                    </span>
+                  </div>
+                )}
+
+                <p className="mt-1.5 text-[11px] text-slate/40">
+                  Videos over {VIDEO_COMPRESS_THRESHOLD_MB} MB are automatically compressed. Accepts MP4, MOV, WebM.
+                </p>
+              </>
             )}
           </div>
 
+          {/* ── Publish ── */}
           <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-navy/5">
             <label className="flex items-center gap-3">
               <input
