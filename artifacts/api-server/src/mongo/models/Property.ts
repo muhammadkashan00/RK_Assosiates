@@ -21,6 +21,8 @@ const propertySchema = new Schema(
     rooms: { type: Number, default: 0, min: 0 },
     baths: { type: Number, default: 0, min: 0 },
     areaSqft: { type: Number, default: 0, min: 0 },
+    // Human-readable area string set by admin, e.g. "5 Marla", "1 Kanal"
+    areaText: { type: String, default: "", trim: true },
     status: {
       type: String,
       enum: ["available", "reserved", "sold"],
