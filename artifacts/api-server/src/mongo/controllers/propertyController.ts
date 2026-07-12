@@ -67,6 +67,7 @@ export const getOne = asyncHandler(async (req, res) => {
     return res.json({ property });
   }
 
+  // Related properties (no view tracking here — handled by POST /:id/view)
   let related = [];
   if (property.marker?.lng != null && property.marker?.lat != null) {
     related = await Property.find({
@@ -93,30 +94,45 @@ export const getOne = asyncHandler(async (req, res) => {
 
 /**
  * POST /properties/:id/view
- * Explicit view-tracking endpoint. Accepts an optional `fingerprintHash`
- * (16-char hex from the frontend's Web Crypto fingerprint). Deduplicates
- * within 24 h using the fingerprint when provided, IP address otherwise.
- * Returns 200 whether the view is new or deduplicated (client doesn't need to know).
+ *
+ * Explicit view-tracking endpoint with device-fingerprint deduplication.
+ *
+ * Deduplication key resolution (single unique index, no dual-index conflicts):
+ *   1. Frontend fingerprint (preferred) — 8–64 char hex string sent in body
+ *      or X-Device-Fingerprint header. Deduplicates per device regardless of IP.
+ *   2. Anonymized IP fallback — used when no fingerprint is provided.
+ *      Format: "ip:<first-three-octets>.0" so devices behind the same NAT are
+ *      still deduplicated at the network level without storing exact IPs.
+ *
+ * Returns 200 in all cases (new view or silently deduplicated).
  */
 export const trackView = asyncHandler(async (req, res) => {
   const property = await Property.findOne({ _id: req.params.id, published: true }).select("_id");
   if (!property) return res.status(404).json({ message: "Property not found." });
 
-  // Accept fingerprint from body (preferred) or header fallback
-  const raw = req.body?.fingerprintHash ?? req.headers["x-device-fingerprint"] ?? "";
-  const fingerprintHash =
-    typeof raw === "string" && /^[0-9a-f]{8,64}$/i.test(raw) ? raw.toLowerCase() : null;
+  // Resolve raw fingerprint from body or header
+  const rawFp = req.body?.fingerprintHash ?? req.headers["x-device-fingerprint"] ?? "";
+  const fingerprint =
+    typeof rawFp === "string" && /^[0-9a-f]{8,64}$/i.test(rawFp.trim())
+      ? rawFp.trim().toLowerCase()
+      : null;
 
-  const ip = String(
+  // Anonymized IP fallback: keep first 3 octets, zero the last (IPv4) or
+  // take first 3 groups (IPv6). Avoids storing exact IPs.
+  const rawIp = String(
     req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() ||
     req.socket?.remoteAddress ||
     "unknown"
   );
+  const anonIp = rawIp.includes(".")
+    ? rawIp.split(".").slice(0, 3).join(".") + ".0"   // IPv4 — zero last octet
+    : rawIp.split(":").slice(0, 4).join(":") + "::/64"; // IPv6 — /64 prefix
+
+  // Single deduplication key: fingerprint when available, IP prefix as fallback
+  const deduplicationKey = fingerprint ?? `ip:${anonIp}`;
 
   try {
-    const doc: Record<string, unknown> = { propertyId: property._id, ip };
-    if (fingerprintHash) doc.fingerprintHash = fingerprintHash;
-    await PropertyView.create(doc);
+    await PropertyView.create({ propertyId: property._id, deduplicationKey });
     // New unique view — increment counter atomically
     await Property.findByIdAndUpdate(property._id, { $inc: { views: 1 } });
   } catch (err: any) {
